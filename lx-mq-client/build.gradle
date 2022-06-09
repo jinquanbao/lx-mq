@@ -1,0 +1,17 @@
+description = 'lx-mq-client'
+version '1.0.0'
+
+dependencies {
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter'
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-json'
+    compile group: 'io.netty', name: 'netty-all', version: '4.1.65.Final'
+    testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test'
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}

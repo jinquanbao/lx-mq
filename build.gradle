@@ -1,0 +1,55 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        maven {
+            url = uri('http://maven.aliyun.com/nexus/content/groups/public')
+        }
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.3.12.RELEASE")
+    }
+    ext {
+        // 项目版本
+        projectVersion = '1.0.0'
+        // sprignboot版本 https://github.com/spring-projects/spring-boot/releases
+        springBootVersion = '2.6.2'
+    }
+}
+allprojects{
+    group = 'com.github.jinquanbao'
+    version APP_VERSION
+
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    tasks.withType(JavaCompile) {
+        options.encoding = "UTF-8"
+    }
+    task sourcesJar(type: Jar) {
+        archiveClassifier = 'sources'
+        from sourceSets.main.allSource
+    }
+    repositories {
+        mavenLocal()
+        maven {
+            url = uri('http://maven.aliyun.com/nexus/content/groups/public')
+        }
+        mavenCentral()
+        // Use the plugin portal to apply community plugins in convention plugins.
+        gradlePluginPortal()
+    }
+    dependencies{
+        compileOnly 'io.springfox:springfox-boot-starter:3.0.0'
+        compileOnly 'org.projectlombok:lombok:1.18.12'
+        annotationProcessor 'org.projectlombok:lombok:1.18.12'
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-starter-parent:${springBootVersion}"
+        }
+    }
+}

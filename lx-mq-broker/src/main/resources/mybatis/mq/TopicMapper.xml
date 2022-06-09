@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.laoxin.mq.broker.mapper.mq.TopicMapper">
+
+
+    <!--处理表 -->
+    <sql id="base"> topic </sql>
+
+
+	<!-- 查询条件 -->
+	<sql id="condition_sql">
+            <if test="id != null and id > 0"> and id = #{id}</if>
+            <if test="tenantId != null and tenantId > 0"> and tenant_id = #{tenantId}</if>
+            <if test="topicName != null and topicName != ''"> and topic_name = #{topicName}</if>
+            <if test="type != null and type != ''"> and type = #{type}</if>
+            <if test="metaData != null and metaData != ''"> and meta_data = #{metaData}</if>
+            <if test="enable != null and enable > 0"> and enable = #{enable}</if>
+            <if test="ids != null and ids != '' "> and id in (${ids}) </if>
+	</sql>
+	
+</mapper>

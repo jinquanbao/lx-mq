@@ -1,0 +1,3 @@
+include(':lx-mq-client')
+include(':lx-mq-broker')
+rootProject.name = 'lx-mq'

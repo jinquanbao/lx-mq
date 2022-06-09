@@ -1,0 +1,13 @@
+description = 'lx-mq-broker'
+version '1.0.0'
+
+dependencies {
+    implementation project(":lx-mq-client")
+    compile group: 'com.baomidou', name: 'mybatis-plus-boot-starter', version: '3.4.1'
+    compile group: 'com.github.xiaoymin', name: 'knife4j-spring-boot-starter', version: '3.0.2'
+    compile group: 'io.springfox', name: 'springfox-boot-starter', version: '3.0.0'
+    compile group: 'com.alibaba', name: 'druid-spring-boot-starter', version: '1.2.8'
+    runtime 'mysql:mysql-connector-java:8.0.27'
+    testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
