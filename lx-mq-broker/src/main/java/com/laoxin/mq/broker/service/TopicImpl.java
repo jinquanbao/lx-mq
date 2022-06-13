@@ -144,14 +144,20 @@ public class TopicImpl implements Topic{
                     );
             callback.completed(null,messageId.getEntryId());
             //触发消息推送
-            triggerPush();
+            triggerReadMessage();
         }catch (Exception e){
             callback.completed(e,0);
         }
     }
 
-    private void triggerPush(){
+    private void triggerReadMessage(){
+        try {
+            subscriptions.forEach((k,subscription)->{
+                subscription.triggerReadMessage();
+            });
+        }catch (Exception e){
 
+        }
     }
 
     @Override

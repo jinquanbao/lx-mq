@@ -9,13 +9,17 @@ import com.laoxin.mq.client.command.CommandMessage;
 import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.conf.ConsumerConfigurationData;
 import com.laoxin.mq.client.exception.MqClientException;
+import com.laoxin.mq.client.util.FutureUtil;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
+import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer<T> {
@@ -23,7 +27,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
     private final long consumerId;
     private final MqClientImpl client;
     private final ConsumerConfigurationData<T> conf;
-    private final Class<T> pojo;
+    private final Type type;
     private boolean createTopicIfNotExist = false;
     protected final MessageListener listener;
     final BlockingQueue<Message<T>> incomingMessages;
@@ -31,13 +35,14 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
     protected final CompletableFuture<Consumer> subscribeFuture;
     private final long subscribeTimeout;
     private boolean orderConsumer;
+    private volatile AtomicBoolean listeningMessage = new AtomicBoolean(false);
 
     public ConsumerImpl(MqClientImpl client, ConsumerConfigurationData conf,Class<T> pojo,ExecutorService listenerExecutor,CompletableFuture<Consumer> subscribeFuture,boolean createTopicIfNotExist){
         super(client,conf.getTopic());
         this.client = client;
         this.consumerId=client.newConsumerId();
         this.conf = conf;
-        this.pojo = pojo;
+        this.type = ParameterizedTypeImpl.make(List.class,new ParameterizedTypeImpl[]{ParameterizedTypeImpl.make(MessageImpl.class, new Class[]{pojo}, null)},null);
         this.listenerExecutor = listenerExecutor;
         this.createTopicIfNotExist = createTopicIfNotExist;
         this.listener = conf.getMessageListener();
@@ -172,8 +177,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
     }
 
     private List<Message<T>> decodeMessage(CommandMessage cmd){
-        List<Message<T>> message = JSONUtil.fromJson(cmd.getPayloadAndHeaders(), new ParameterizedTypeReference<List<MessageImpl<T>>>() {
-        });
+        List<Message<T>> message = JSONUtil.fromJson(cmd.getPayloadAndHeaders(), ParameterizedTypeReference.forType(type));
         return message;
     }
 
@@ -194,32 +198,54 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
 
 
     void triggerListener(){
-        if(listener != null){
+        if(listener != null && !listeningMessage.get()){
+
             listenerExecutor.execute(()->{
-                Message msg;
-                try {
-                    msg = internalReceive(0,TimeUnit.MILLISECONDS);
-                } catch (Exception e) {
-                    log.warn("消息出队异常,topic={},Subscription={}", topic, getSubscription(), e);
-                    return;
-                }
-                if(msg == null){
+                if(!listeningMessage.compareAndSet(false,true)){
                     return;
                 }
                 try {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Calling message listener for message {}", topic, getSubscription(), msg);
-                    }
-                    listener.onMessage(this, msg);
-                    //if consumer no ack
-                    deQueueMsg(msg);
-                } catch (Throwable t) {
-                    log.error("[{}][{}] Message listener error in processing message: {}", topic,  getSubscription(), msg,
-                            t);
+                    triggerListenerSync();
                 }finally {
-                    triggerListener();
+                    listeningMessage.set(false);
                 }
             });
+        }
+    }
+
+    private void triggerListenerSync(){
+        Message msg;
+        try {
+            msg = internalReceive(0,TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("消息出队异常,topic={},Subscription={}", topic, getSubscription(), e);
+            return;
+        }
+        if(msg == null){
+            return;
+        }
+
+        try {
+            if(conf.getFilter() != null){
+                if(!conf.getFilter().accept(msg)){
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] auto ack message for message {} which is filtered", topic, getSubscription(), msg);
+                    }
+                    ack(msg);
+                    return;
+                }
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Calling message listener for message {}", topic, getSubscription(), msg);
+            }
+            listener.onMessage(this, msg);
+            //if consumer no ack
+            deQueueMsg(msg);
+        } catch (Throwable t) {
+            log.error("[{}][{}] Message listener error in processing message: {}", topic,  getSubscription(), msg,
+                    t);
+        }finally {
+            triggerListenerSync();
         }
     }
 

@@ -207,7 +207,9 @@ public class MqClientHandler extends AbstractMqHandler {
         consumers.remove(consumerId);
     }
 
-
+    public CompletableFuture<BaseCommand> sendAsync(BaseCommand cmd) {
+        return sendAsync(cmd,client.newRequestId(),BaseCommand.class);
+    }
 
     public CompletableFuture<BaseCommand> sendAsync(BaseCommand cmd, long requestId) {
         return sendAsync(cmd,requestId,BaseCommand.class);

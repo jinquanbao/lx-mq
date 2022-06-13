@@ -5,7 +5,9 @@ import com.laoxin.mq.client.api.MessageBuilder;
 import com.laoxin.mq.client.impl.MessageIdImpl;
 import com.laoxin.mq.client.impl.MessageImpl;
 import org.springframework.core.ParameterizedTypeReference;
+import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -63,7 +65,7 @@ public class FutureUtil {
     }
 
     public static void main(String[] args) {
-        final Message builder = MessageBuilder.create().setContent("ha lo")
+        final Message builder = MessageBuilder.create().setContent(new User())
                 .setMessageId(new MessageIdImpl(1,"xx",1))
                 .build();
 
@@ -72,11 +74,24 @@ public class FutureUtil {
         
         final String s = JSONUtil.toJson(list);
 
-        List<Message<Object>> message = JSONUtil.fromJson(s, new ParameterizedTypeReference<List<MessageImpl<Object>>>() {
-        });
+        ParameterizedTypeReference.<List<MessageImpl<User>>>forType(User.class);
+
+        final Class<User> userClass = User.class;
+        final Type genericSuperclass = userClass.getGenericSuperclass();
+
+        //ParameterizedTypeImpl();
+
+
+        ParameterizedTypeImpl type = ParameterizedTypeImpl.make(MessageImpl.class, new Class[]{User.class}, null);
+
+        type = ParameterizedTypeImpl.make(List.class,new ParameterizedTypeImpl[]{type},null);
+
+        List<Message<User>> message = JSONUtil.fromJson(s, ParameterizedTypeReference.forType(type));
 
         System.out.println(message);
+
     }
+
 
 
     static class User{
