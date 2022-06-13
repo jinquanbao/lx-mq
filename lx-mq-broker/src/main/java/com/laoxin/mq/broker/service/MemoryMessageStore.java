@@ -26,7 +26,12 @@ public class MemoryMessageStore implements MessageStore {
     }
 
     @Override
-    public CompletableFuture<List<Message>> readMessage(Position position, Long maxEntryId, int readSize) {
+    public CompletableFuture<List<Message>> readMessage(ReadMessageRequest request) {
+
+        Position position = request.getPosition();
+        Long maxEntryId = request.getMaxEntryId();
+        int readSize = request.getReadSize();
+        final Map<String, String> subscriptionProperties = request.getSubscriptionProperties();
 
         final PriorityQueue<Message> queue = msgMap.get(TopicKey.builder().tenantId(position.getPositionKey().getTenantId())
                 .topicName(position.getPositionKey().getTopic()).build());
@@ -34,13 +39,16 @@ public class MemoryMessageStore implements MessageStore {
         if(queue == null){
             return CompletableFuture.completedFuture(null);
         }
-
+        DefaultMessageTagFilter filter = new DefaultMessageTagFilter(subscriptionProperties);
         List<Message> list = new ArrayList<>();
         final Iterator<Message> iterator = queue.iterator();
         while (iterator.hasNext()){
             final Message next = iterator.next();
             if(maxEntryId != null && maxEntryId.compareTo(next.getMessageId().getEntryId()) <0 ){
                 break;
+            }
+            if(!filter.accept(next.getProperties())){
+                continue;
             }
             if(((Long)position.getEntryId()).compareTo(next.getMessageId().getEntryId()) <0 ){
                 list.add(next);

@@ -41,7 +41,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
         this.listenerExecutor = listenerExecutor;
         this.createTopicIfNotExist = createTopicIfNotExist;
         this.listener = conf.getMessageListener();
-        this.incomingMessages = new ArrayBlockingQueue(1);
+        this.incomingMessages = new ArrayBlockingQueue(1024);
         this.subscribeFuture = subscribeFuture;
         this.orderConsumer = conf.isOrderConsumer();
         this.subscribeTimeout = System.currentTimeMillis() + 10 * 1000;
@@ -307,6 +307,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
 
     @Override
     public void close() throws MqClientException {
+        log.info("consumer[{}] closing...",getSubscription());
         try {
             closeAsync().get();
         } catch (ExecutionException e) {
@@ -320,6 +321,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
             Thread.currentThread().interrupt();
             throw new MqClientException(e);
         }
+        log.info("consumer[{}] closed",getSubscription());
     }
 
     public CompletableFuture<Void> closeAsync() {
@@ -381,7 +383,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
 
         //发送订阅消息
         long requestId = client.newRequestId();
-        final BaseCommand subscribe = Commands.newSubscribe(conf.getTenantId(),topic,conf.getTopicType(), getSubscription(), consumerId, conf.getSubscriptionType(), conf.getConsumerName(),conf.getDependencyOnSubscription(),conf.getAckTimeoutMillis()
+        final BaseCommand subscribe = Commands.newSubscribe(conf.getSubscriptionProperties(),conf.getTenantId(),topic,conf.getTopicType(), getSubscription(), consumerId, conf.getSubscriptionType(), conf.getConsumerName(),conf.getDependencyOnSubscription(),conf.getAckTimeoutMillis()
                 ,listener != null);
         ch.sendAsync(subscribe,requestId)
                 .thenRun(()->{

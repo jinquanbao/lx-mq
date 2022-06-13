@@ -4,6 +4,7 @@ import com.laoxin.mq.broker.entity.mq.BinLogStoreEntity;
 import com.laoxin.mq.broker.enums.StoreType;
 import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.broker.position.PositionKey;
+import com.laoxin.mq.client.api.BinlogSubscriptionProperties;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.api.MessageBuilder;
 import com.laoxin.mq.client.api.MessageId;
@@ -16,10 +17,7 @@ import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -38,7 +36,21 @@ public class RdbBinlogMessageStore implements MessageStore {
     }
 
     @Override
-    public CompletableFuture<List<Message>> readMessage(Position position,Long maxEntryId , int readSize) {
+    public CompletableFuture<List<Message>> readMessage(ReadMessageRequest request) {
+
+        Position position = request.getPosition();
+        Long maxEntryId = request.getMaxEntryId();
+        int readSize = request.getReadSize();
+        final Map<String, String> subscriptionProperties = request.getSubscriptionProperties();
+
+        Set<String> tableNames = null;
+        Set<String> eventTypes = null;
+
+        if(subscriptionProperties != null){
+            BinlogSubscriptionProperties properties = BinlogSubscriptionProperties.from(subscriptionProperties);
+            tableNames = properties.getTableNames();
+            eventTypes = properties.getEventTypes();
+        }
 
         final PositionKey dto = position.getPositionKey();
 
@@ -58,6 +70,14 @@ public class RdbBinlogMessageStore implements MessageStore {
         }
         sql.append(" and tenant_id=:tenant_id");
 
+        if(tableNames != null && !tableNames.isEmpty()){
+            paramMap.put("table_names",tableNames);
+            sql.append(" and table_name in (:table_names)");
+        }
+        if(eventTypes != null && !eventTypes.isEmpty()){
+            paramMap.put("event_types",eventTypes);
+            sql.append(" and event_type in (:event_types)");
+        }
 
         sql.append(" order by id asc limit :limit");
         paramMap.put("limit",readSize);
@@ -67,12 +87,6 @@ public class RdbBinlogMessageStore implements MessageStore {
         }
 
         List<BinLogStoreEntity> result = jdbcTemplate.query(sql.toString(), paramMap, new BeanPropertyRowMapper(BinLogStoreEntity.class));
-
-        MessageId messageId = null;
-
-        if(result != null && result.size() > 0){
-            messageId = MessageId.from(dto.getTopic(),dto.getTenantId(),result.get(result.size()-1).getId());
-        }
 
         final List<Message> list = result
                 .stream()

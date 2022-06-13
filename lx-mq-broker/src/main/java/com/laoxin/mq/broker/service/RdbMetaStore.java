@@ -117,6 +117,7 @@ public class RdbMetaStore implements MetaStore{
                 .dependencyOnSubscription(subscriptionMetaData.getDependencyOnSubscription())
                 .enablePush(subscriptionMetaData.isEnablePush())
                 .filterExpression(subscriptionMetaData.getFilterExpression())
+                .subscriptionProperties(subscriptionMetaData.getSubscriptionProperties())
                 .consumers(hashSet)
                 .build();
 

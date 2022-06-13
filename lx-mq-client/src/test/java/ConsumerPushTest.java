@@ -24,6 +24,7 @@ public class ConsumerPushTest {
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeOut(10, TimeUnit.SECONDS)
                 .messageListener(new PushMessageListener())
+                .subscriptionProperty("tagTest","v1")
                 .subscribe();
 
 

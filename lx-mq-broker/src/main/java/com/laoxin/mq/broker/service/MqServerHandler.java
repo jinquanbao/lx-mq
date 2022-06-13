@@ -139,6 +139,7 @@ public class MqServerHandler extends AbstractMqHandler {
                         topic.subscribe(this,consumerKey,
                                 SubscriptionMetaData.builder()
                                         .filterExpression(subscribe.getFilterExpression())
+                                        .subscriptionProperties(subscribe.getSubscriptionProperties())
                                         .subscriptionName(subscribe.getSubscription())
                                         .dependencyOnSubscription(subscribe.getDependencyOnSubscription())
                                         .subscriptionType(subscribe.getSubscribeType())

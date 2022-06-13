@@ -40,9 +40,13 @@ public class ProducerTest {
             try {
                 final String next = scanner.next();
 
-                CompletableFuture<MessageId> future = producer2.sendAsync("producer2:"+next);
+                CompletableFuture<MessageId> future = producer.sendAsync("producer2:"+next);
 
-                MessageId sss = producer.send("producer1:"+next);
+                MessageId sss = producer2.newMessage()
+                        .property("tagTest","TAGS")
+                        .value("producer1:"+next)
+                        .send()
+                        ;
                 System.out.println("producer1 send success,ack MessageId="+sss);
 
                 System.out.println("producer2 send success,ack MessageId="+future.get());

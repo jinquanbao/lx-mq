@@ -116,7 +116,7 @@ public class MqClientImpl implements MqClient {
 
     @Override
     public void close() {
-
+        log.info("mq client closing...");
         synchronized (producers){
                 producers.forEach(p-> {
                     try {
@@ -138,6 +138,7 @@ public class MqClientImpl implements MqClient {
         externalExecutorProvider.shutdownNow();
         internalExecutorProvider.shutdownNow();
         scheduledExecutorService.shutdownNow();
+        log.info("mq client closed");
     }
 
 
@@ -166,9 +167,6 @@ public class MqClientImpl implements MqClient {
         return requestIdGenerator.getAndIncrement();
     }
 
-    public long newSeqId() {
-        return requestIdGenerator.getAndIncrement();
-    }
 
     Timer timer(){
         return timer;

@@ -1,9 +1,6 @@
 package com.laoxin.mq.client.impl;
 
-import com.laoxin.mq.client.api.Message;
-import com.laoxin.mq.client.api.MessageBuilder;
-import com.laoxin.mq.client.api.MessageId;
-import com.laoxin.mq.client.api.Producer;
+import com.laoxin.mq.client.api.*;
 import com.laoxin.mq.client.command.BaseCommand;
 import com.laoxin.mq.client.command.CommandSendReceipt;
 import com.laoxin.mq.client.command.Commands;
@@ -83,6 +80,11 @@ public class ProducerImpl<T> extends DefaultClientConnection implements Producer
             list.add(MessageBuilder.create().setContent(t).build());
         }
         return sendMessageAsync(list);
+    }
+
+    @Override
+    public MessageSenderBuilder<T> newMessage() {
+        return new MessageSenderBuilderImpl(this);
     }
 
     @Override
@@ -171,7 +173,7 @@ public class ProducerImpl<T> extends DefaultClientConnection implements Producer
 
     @Override
     public void close() throws MqClientException {
-
+        log.info("producer[{}] closing...",producerName);
         try {
             closeAsync().get();
         } catch (ExecutionException e) {
@@ -185,7 +187,7 @@ public class ProducerImpl<T> extends DefaultClientConnection implements Producer
             Thread.currentThread().interrupt();
             throw new MqClientException(e);
         }
-
+        log.info("producer[{}] closed",producerName);
     }
 
     public CompletableFuture<Void> closeAsync() {

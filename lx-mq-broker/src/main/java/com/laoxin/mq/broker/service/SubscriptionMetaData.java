@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -23,6 +25,8 @@ public class SubscriptionMetaData {
     private long ackTimeOut;
 
     private boolean enablePush;
+
+    private Map<String, String> subscriptionProperties;
 
     private SubscriptionConsumer consumer;
 }

@@ -5,6 +5,8 @@ import com.laoxin.mq.client.enums.SubscriptionType;
 import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.util.JSONUtil;
 
+import java.util.Map;
+
 public interface Commands {
 
     static BaseCommand newSuccess(){
@@ -35,9 +37,9 @@ public interface Commands {
     }
 
 
-    static BaseCommand newSubscribe(long tenantId,String topic,TopicType topicType, String subscription, long consumerId,
-                                    SubscriptionType subType, String consumerName,String dependencyOnSubscription
-                                    ,long ackTimeOut,boolean enablePush
+    static BaseCommand newSubscribe(Map<String,String> subscriptionProperties, long tenantId, String topic, TopicType topicType, String subscription, long consumerId,
+                                    SubscriptionType subType, String consumerName, String dependencyOnSubscription
+                                    , long ackTimeOut, boolean enablePush
     ) {
         final CommandSubscribe build = CommandSubscribe.builder()
                 .consumerId(consumerId)
@@ -50,6 +52,7 @@ public interface Commands {
                 .topic(topic)
                 .tenantId(tenantId)
                 .topicType(topicType == null?null:topicType.name())
+                .subscriptionProperties(subscriptionProperties)
                 .build();
 
         return BaseCommand.builder()

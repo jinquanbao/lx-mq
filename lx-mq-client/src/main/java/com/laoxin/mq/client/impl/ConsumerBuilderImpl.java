@@ -10,6 +10,8 @@ import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.exception.MqClientException;
 import org.springframework.util.StringUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
@@ -99,7 +101,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
-    @Override
+    //@Override
     public ConsumerBuilder<T> filterExpression(String filterExpression) {
         conf.setFilterExpression(filterExpression);
         return this;
@@ -108,6 +110,23 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> messageFilter(MessageFilter<T> filter) {
         conf.setFilter(filter);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> subscriptionProperty(String name, String value) {
+        Map subscriptionProperties = conf.getSubscriptionProperties();
+        if(subscriptionProperties == null){
+            subscriptionProperties = new HashMap();
+            conf.setSubscriptionProperties(subscriptionProperties);
+        }
+        subscriptionProperties.put(name,value);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties) {
+        conf.setSubscriptionProperties(subscriptionProperties);
         return this;
     }
 

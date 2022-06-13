@@ -11,7 +11,7 @@ public interface MessageStore {
 
     boolean storageType(String storageType);
 
-    CompletableFuture<List<Message>> readMessage(Position position, Long maxEntryId , int readSize);
+    CompletableFuture<List<Message>> readMessage(ReadMessageRequest request);
 
     MessageIdImpl writeMessage(TopicKey topicKey,String message);
 }

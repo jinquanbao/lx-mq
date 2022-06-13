@@ -24,6 +24,17 @@ public interface Producer<T> extends Closeable {
 
     CompletableFuture<MessageId> sendAsync(Message<T> message);
 
+    /**
+     * Create a new message sender builder.
+     * <pre>{@code
+     * producer.newMessage()
+     *       .value(myValue)
+     *       .property("tag1", "TAGS")
+     *       .send();
+     * }</pre>
+     */
+    MessageSenderBuilder<T> newMessage();
+
     void close() throws MqClientException;
 
     CompletableFuture<Void> closeAsync();

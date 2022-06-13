@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -21,6 +23,7 @@ public class CommandSubscribe {
 
     private String subscribeType;
 
+    @Deprecated
     private String filterExpression;
 
     private long consumerId;
@@ -32,6 +35,8 @@ public class CommandSubscribe {
     private long ackTimeOut;
 
     private boolean enablePush;
+
+    Map<String, String> subscriptionProperties;
 
 
 }

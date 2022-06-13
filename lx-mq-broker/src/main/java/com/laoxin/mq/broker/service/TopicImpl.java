@@ -7,10 +7,7 @@ import com.laoxin.mq.client.impl.MessageIdImpl;
 import com.laoxin.mq.client.util.FutureUtil;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -121,10 +118,17 @@ public class TopicImpl implements Topic{
     }
 
     @Override
-    public CompletableFuture<List<Message>> pullMessage(Position position,Long maxEntryId, int size) {
+    public CompletableFuture<List<Message>> pullMessage(Position position, Map<String, String> subscriptionProperties, Long maxEntryId, int size) {
+
+        ReadMessageRequest request = ReadMessageRequest.builder()
+                .position(position)
+                .subscriptionProperties(subscriptionProperties)
+                .maxEntryId(maxEntryId)
+                .readSize(size)
+                .build();
 
         return service.storeManager().getMessageStore(topicMetaData.getTopicType())
-                .readMessage(position,maxEntryId,size);
+                .readMessage(request);
     }
 
     @Override

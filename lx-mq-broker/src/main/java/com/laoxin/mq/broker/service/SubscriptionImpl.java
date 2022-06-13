@@ -156,7 +156,7 @@ public class SubscriptionImpl implements Subscription{
             maxEntryId = dependencyPosition.get().getEntryId();
         }
 
-        return topic.pullMessage(position,maxEntryId,size);
+        return topic.pullMessage(position,subscriptionMetaData.getSubscriptionProperties(),maxEntryId,size);
     }
 
     public CompletableFuture<List<Message>> pullCacheMessage(Position position, int size){

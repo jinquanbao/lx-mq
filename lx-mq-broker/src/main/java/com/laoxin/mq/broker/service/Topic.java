@@ -4,6 +4,7 @@ import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.client.api.Message;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,7 +23,7 @@ public interface Topic {
 
     void removeProducer(Producer producer);
 
-    CompletableFuture<List<Message>> pullMessage(Position position, Long maxEntryId, int size);
+    CompletableFuture<List<Message>> pullMessage(Position position, Map<String, String> subscriptionProperties, Long maxEntryId, int size);
 
     void publishMessage(String message,PublishCallback callback);
 
