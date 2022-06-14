@@ -9,7 +9,6 @@ import com.laoxin.mq.client.command.CommandMessage;
 import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.conf.ConsumerConfigurationData;
 import com.laoxin.mq.client.exception.MqClientException;
-import com.laoxin.mq.client.util.FutureUtil;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -187,6 +186,12 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
             return;
         }
         try {
+            final Message<T> peek = incomingMessages.peek();
+            if(orderConsumer && peek != null
+                    && list.get(0).getMessageId().compareTo(peek.getMessageId())<=0 ){
+                //Duplicate Message
+                return;
+            }
             for(Message message: list){
                 incomingMessages.add(message);
             }
@@ -214,38 +219,40 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
     }
 
     private void triggerListenerSync(){
-        Message msg;
-        try {
-            msg = internalReceive(0,TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            log.warn("消息出队异常,topic={},Subscription={}", topic, getSubscription(), e);
-            return;
-        }
-        if(msg == null){
-            return;
-        }
 
-        try {
-            if(conf.getFilter() != null){
-                if(!conf.getFilter().accept(msg)){
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] auto ack message for message {} which is filtered", topic, getSubscription(), msg);
+        while (true){
+
+            Message msg;
+            try {
+                msg = internalReceive(0,TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                log.warn("消息出队异常,topic={},Subscription={}", topic, getSubscription(), e);
+                return;
+            }
+            if(msg == null){
+                return;
+            }
+
+            try {
+                if(conf.getFilter() != null){
+                    if(!conf.getFilter().accept(msg)){
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] auto ack message for message {} which is filtered", topic, getSubscription(), msg);
+                        }
+                        ack(msg);
+                        continue;
                     }
-                    ack(msg);
-                    return;
                 }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Calling message listener for message {}", topic, getSubscription(), msg);
+                }
+                listener.onMessage(this, msg);
+                //if consumer no ack
+                deQueueMsg(msg);
+            } catch (Throwable t) {
+                log.error("[{}][{}] Message listener error in processing message: {}", topic,  getSubscription(), msg,
+                        t);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Calling message listener for message {}", topic, getSubscription(), msg);
-            }
-            listener.onMessage(this, msg);
-            //if consumer no ack
-            deQueueMsg(msg);
-        } catch (Throwable t) {
-            log.error("[{}][{}] Message listener error in processing message: {}", topic,  getSubscription(), msg,
-                    t);
-        }finally {
-            triggerListenerSync();
         }
     }
 

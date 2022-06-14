@@ -1,5 +1,7 @@
 package com.laoxin.mq.broker.service;
 
+import com.laoxin.mq.broker.authentication.CredentialsAuthenticationDTO;
+import com.laoxin.mq.broker.authentication.UserAuthContext;
 import com.laoxin.mq.broker.entity.mq.SubscriptionConsumer;
 import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.client.api.AbstractMqHandler;
@@ -13,10 +15,7 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.SocketAddress;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -25,15 +24,15 @@ import java.util.stream.Collectors;
 public class MqServerHandler extends AbstractMqHandler {
 
     private final BrokerService service;
-    private Set<Long> scopeTenantIds;
+    private UserAuthContext authContext;
     private final ConcurrentHashMap<ProducerKey,CompletableFuture<Producer>> producers;
     private final ConcurrentHashMap<ConsumerKey,CompletableFuture<Consumer>> consumers;
 
     public MqServerHandler(BrokerService service){
         this.service = service;
-        this.scopeTenantIds = new HashSet<>();
         this.consumers = new ConcurrentHashMap<>();
         this.producers = new ConcurrentHashMap<>();
+        this.authContext = new UserAuthContext();
     }
 
     @Override
@@ -71,10 +70,20 @@ public class MqServerHandler extends AbstractMqHandler {
         state = ConnectionState.Closed;
     }
 
-    private void checkTenantId(long tenantId){
-        if(tenantId > 0 && !scopeTenantIds.contains(tenantId)){
-            throw new IllegalArgumentException("handle reject for tenant overreach");
+    private long checkTenantId(long tenantId){
+
+        if(tenantId >0 ){
+
+            if(tenantId != authContext.getTenantId() || !authContext.scopeAll()){
+                throw new IllegalArgumentException("handle reject for tenantId overreach");
+            }
+
+            return tenantId;
+
+        }else {
+            return authContext.getTenantId();
         }
+
     }
 
     @Override
@@ -82,8 +91,17 @@ public class MqServerHandler extends AbstractMqHandler {
 
         final String clientId = connect.getAuthClientId();
 
-        //TODO 鉴权
-        scopeTenantIds.add(1L);
+        try {
+            //鉴权
+            authContext = service.authenticationService().authenticate(CredentialsAuthenticationDTO
+                    .builder()
+                    .clientId(clientId)
+                    .build());
+        }catch (Exception e){
+            send(Commands.newError("401",e.getMessage()),-1);
+            close();
+            return;
+        }
 
         send(BaseCommand.builder()
                 .commandType(CommandType.CONNECTED.name())
@@ -100,80 +118,73 @@ public class MqServerHandler extends AbstractMqHandler {
 
         CommandSubscribe subscribe = JSONUtil.fromJson(cmd.getBody(),CommandSubscribe.class);
         //校验租户是否越权
-        checkTenantId(subscribe.getTenantId());
+        long tenantId = checkTenantId(subscribe.getTenantId());
 
-        for(long tenantId: scopeTenantIds){
+        ConsumerKey consumerKey = ConsumerKey.builder()
+                .consumerId(subscribe.getConsumerId())
+                .tenantId(tenantId)
+                .build();
 
-            if(subscribe.getTenantId() > 0 && subscribe.getTenantId() != tenantId){
-                continue;
+        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+        //消费者是否已在当前连接订阅
+        CompletableFuture<Consumer> existFuture = consumers.putIfAbsent(consumerKey,consumerFuture);
+        if(existFuture != null){
+            if(existFuture.isDone() && !existFuture.isCompletedExceptionally()){
+                final Consumer consumer = existFuture.getNow(null);
+                log.info("consumer=[{}] alreay created",consumer);
+                send(Commands.newSuccess(),cmd.getRequestId());
+            }else {
+                log.warn("consumer=[{}] is already creating on the connection", consumerKey);
+                send(Commands.newError("1","consumer is already creating on the connection"),cmd.getRequestId());
             }
-
-            ConsumerKey consumerKey = ConsumerKey.builder()
-                    .consumerId(subscribe.getConsumerId())
-                    .tenantId(tenantId)
-                    .build();
-
-            CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-            //消费者是否已在当前连接订阅
-            CompletableFuture<Consumer> existFuture = consumers.putIfAbsent(consumerKey,consumerFuture);
-            if(existFuture != null){
-                if(existFuture.isDone() && !existFuture.isCompletedExceptionally()){
-                    final Consumer consumer = existFuture.getNow(null);
-                    log.info("consumer=[{}] alreay created",consumer);
-                    send(Commands.newSuccess(),cmd.getRequestId());
-                }else {
-                    log.warn("consumer=[{}] is already creating on the connection", consumerKey);
-                    send(Commands.newError("1","consumer is already creating on the connection"),cmd.getRequestId());
-                }
-                return;
-            }
-
-            TopicMetaData topicMetaData = TopicMetaData.builder()
-                    .tenantId(tenantId)
-                    .topicName(subscribe.getTopic())
-                    .topicType(subscribe.getTopicType())
-                    .build();
-
-            service.getTopic(topicMetaData)
-                    .thenCompose(topic ->
-                        topic.subscribe(this,consumerKey,
-                                SubscriptionMetaData.builder()
-                                        .filterExpression(subscribe.getFilterExpression())
-                                        .subscriptionProperties(subscribe.getSubscriptionProperties())
-                                        .subscriptionName(subscribe.getSubscription())
-                                        .dependencyOnSubscription(subscribe.getDependencyOnSubscription())
-                                        .subscriptionType(subscribe.getSubscribeType())
-                                        .ackTimeOut(subscribe.getAckTimeOut())
-                                        .enablePush(subscribe.isEnablePush())
-                                        .consumer(SubscriptionConsumer.builder()
-                                                .address(remoteAddress.toString())
-                                                .consumerName(subscribe.getConsumerName())
-                                                .build())
-                                        .build()
-                                )
-                    ).thenAccept(consumer->{
-                        //订阅成功
-                        if(consumerFuture.complete(consumer)){
-                            log.info("客户端[{}]订阅主题:[{}]成功，订阅名称:[{}]", remoteAddress, subscribe.getTopic(),
-                                    subscribe.getSubscription());
-                            send(Commands.newSuccess(),cmd.getRequestId());
-                        }else {
-                            consumer.close();
-                            consumers.remove(consumerKey);
-                        }
-                    }).exceptionally(e->{
-                        log.error("消费者[{}]订阅主题[{}]失败 ,订阅名称:[{}],errMsg={}",remoteAddress, subscribe.getTopic(),subscribe.getSubscription(),e.getMessage());
-                        //订阅失败
-                        consumers.remove(consumerKey, consumerFuture);
-                        if (consumerFuture.completeExceptionally(e)) {
-                            send(Commands.newError("1",
-                                    e.getMessage()),
-                                    cmd.getRequestId());
-                        }
-                        return null;
-                    });
-
+            return;
         }
+
+        TopicMetaData topicMetaData = TopicMetaData.builder()
+                .tenantId(tenantId)
+                .topicName(subscribe.getTopic())
+                .topicType(subscribe.getTopicType())
+                .build();
+
+        service.getTopic(topicMetaData)
+                .thenCompose(topic ->
+                    topic.subscribe(this,consumerKey,
+                            SubscriptionMetaData.builder()
+                                    .filterExpression(subscribe.getFilterExpression())
+                                    .subscriptionProperties(subscribe.getSubscriptionProperties())
+                                    .subscriptionName(subscribe.getSubscription())
+                                    .dependencyOnSubscription(subscribe.getDependencyOnSubscription())
+                                    .subscriptionType(subscribe.getSubscribeType())
+                                    .ackTimeOut(subscribe.getAckTimeOut())
+                                    .enablePush(subscribe.isEnablePush())
+                                    .consumer(SubscriptionConsumer.builder()
+                                            .address(remoteAddress.toString())
+                                            .consumerName(subscribe.getConsumerName())
+                                            .build())
+                                    .build()
+                            )
+                ).thenAccept(consumer->{
+                    //订阅成功
+                    if(consumerFuture.complete(consumer)){
+                        log.info("客户端[{}]订阅主题:[{}]成功，订阅名称:[{}]", remoteAddress, subscribe.getTopic(),
+                                subscribe.getSubscription());
+                        send(Commands.newSuccess(),cmd.getRequestId());
+                    }else {
+                        consumer.close();
+                        consumers.remove(consumerKey);
+                    }
+                }).exceptionally(e->{
+                    log.error("消费者[{}]订阅主题[{}]失败 ,订阅名称:[{}],errMsg={}",remoteAddress, subscribe.getTopic(),subscribe.getSubscription(),e.getMessage());
+                    //订阅失败
+                    consumers.remove(consumerKey, consumerFuture);
+                    if (consumerFuture.completeExceptionally(e)) {
+                        send(Commands.newError("1",
+                                e.getMessage()),
+                                cmd.getRequestId());
+                    }
+                    return null;
+                });
+
 
     }
 
@@ -319,30 +330,22 @@ public class MqServerHandler extends AbstractMqHandler {
 
         CommandPull pull = JSONUtil.fromJson(cmd.getBody(), CommandPull.class);
 
-        Set<Long> activeTenantIds = new HashSet<>();
-        if(pull.getTenantId()>0){
-            //校验数据权限
-            checkTenantId(pull.getTenantId());
-            activeTenantIds.add(pull.getTenantId());
-        }else {
-            activeTenantIds.addAll(scopeTenantIds);
-        }
+        //校验数据权限
+        long tenantId = checkTenantId(pull.getTenantId());
 
         List<Message> result = new ArrayList<>();
         List<Throwable> errors = new ArrayList<>();
         List<CompletableFuture<List<Message>>> futures = new ArrayList<>();
 
-        for(long tenantId:activeTenantIds){
-            final ConsumerKey consumerKey = ConsumerKey.builder().tenantId(tenantId).consumerId(pull.getConsumerId()).build();
-            CompletableFuture<Consumer> future = consumers.get(consumerKey);
-            //处理拉取请求
-            if(FutureUtil.futureSuccess(future)){
-                pull.setTenantId(tenantId);
-                futures.add(future.getNow(null)
-                        .pull(pull));
-            }else {
-                log.warn("consumer future creating on connection,consumer={},address={}",consumerKey,remoteAddress);
-            }
+        final ConsumerKey consumerKey = ConsumerKey.builder().tenantId(tenantId).consumerId(pull.getConsumerId()).build();
+        CompletableFuture<Consumer> future = consumers.get(consumerKey);
+        //处理拉取请求
+        if(FutureUtil.futureSuccess(future)){
+            pull.setTenantId(tenantId);
+            futures.add(future.getNow(null)
+                    .pull(pull));
+        }else {
+            log.warn("consumer future creating on connection,consumer={},address={}",consumerKey,remoteAddress);
         }
 
         futures.forEach(x->x.whenComplete((messages, e) -> {
@@ -355,12 +358,12 @@ public class MqServerHandler extends AbstractMqHandler {
 
         if(!result.isEmpty() || errors.isEmpty()){
             if(log.isDebugEnabled()){
-                log.debug("handle consumer pull success,topic={},subscription,tenantIds={},address={}",pull.getTopic(),pull.getSubscription(),activeTenantIds,remoteAddress);
+                log.debug("handle consumer pull success,topic={},subscription,tenantId={},address={}",pull.getTopic(),pull.getSubscription(),tenantId,remoteAddress);
             }
             send(Commands.newPullReceipt(pull.getConsumerId(),JSONUtil.toJson(result)),cmd.getRequestId());
         }else if(!errors.isEmpty()){
             final String errMsg = errors.stream().map(x -> x.getMessage()).collect(Collectors.joining());
-            log.error("handle consumer pull error,topic={},subscription,tenantIds={},address={},errMsg={}",pull.getTopic(),pull.getSubscription(),activeTenantIds,remoteAddress,errMsg);
+            log.error("handle consumer pull error,topic={},subscription,tenantId={},address={},errMsg={}",pull.getTopic(),pull.getSubscription(),tenantId,remoteAddress,errMsg);
             send(Commands.newError("1",errMsg),cmd.getRequestId());
         }
 
@@ -374,13 +377,7 @@ public class MqServerHandler extends AbstractMqHandler {
 
         CommandUnSubscribe unSubscribe = JSONUtil.fromJson(cmd.getBody(), CommandUnSubscribe.class);
 
-        Set<Long> activeTenantIds = new HashSet<>();
-        if(unSubscribe.getTenantId()>0){
-            checkTenantId(unSubscribe.getTenantId());
-            activeTenantIds.add(unSubscribe.getTenantId());
-        }else {
-            activeTenantIds.addAll(scopeTenantIds);
-        }
+        List<Long> activeTenantIds = Arrays.asList(checkTenantId(unSubscribe.getTenantId()));
 
         CompletableFuture wait = new CompletableFuture();
         boolean consumerNotFound = true;
@@ -453,12 +450,7 @@ public class MqServerHandler extends AbstractMqHandler {
         CommandCloseConsumer close = JSONUtil.fromJson(cmd.getBody(), CommandCloseConsumer.class);
 
         Set<Long> activeTenantIds = new HashSet<>();
-        if(close.getTenantId()>0){
-            checkTenantId(close.getTenantId());
-            activeTenantIds.add(close.getTenantId());
-        }else {
-            activeTenantIds.addAll(scopeTenantIds);
-        }
+        activeTenantIds.add(checkTenantId(close.getTenantId()));
 
         try {
             activeTenantIds.forEach(tenantId->{

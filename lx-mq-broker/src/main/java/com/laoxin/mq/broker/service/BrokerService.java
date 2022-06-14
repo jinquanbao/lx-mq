@@ -1,5 +1,8 @@
 package com.laoxin.mq.broker.service;
 
+import com.laoxin.mq.broker.authentication.AuthenticationService;
+import com.laoxin.mq.broker.authentication.AuthenticationServiceImpl;
+import com.laoxin.mq.broker.authentication.DefaultAuthenticationProviderManager;
 import com.laoxin.mq.broker.config.BrokerConfigurationData;
 import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.broker.position.PositionOffsetStore;
@@ -37,12 +40,14 @@ public class BrokerService implements Closeable {
     private final ExecutorService pushMessageExecutor;
     private final ExecutorService readMessageExecutor;
     private final SpringContext springContext;
+    private final AuthenticationService authenticationService;
 
 
 
     public BrokerService(DataSource dataSource, SpringContext springContext, BrokerConfigurationData conf){
         this.conf = conf;
-        serverStarter = new NettyServerStarter(this);
+        this.authenticationService = new AuthenticationServiceImpl(new DefaultAuthenticationProviderManager(dataSource,conf));
+        this.serverStarter = new NettyServerStarter(this);
         this.topics = new ConcurrentHashMap<>();
         this.storeManager = new DefaultStoreManager(dataSource,springContext,conf);
         this.metaStore = storeManager.getMetaStore();
@@ -164,7 +169,10 @@ public class BrokerService implements Closeable {
     public ExecutorService pushMessageExecutor(){
         return pushMessageExecutor;
     }
-    ExecutorService readMessageExecutor(){
+    public ExecutorService readMessageExecutor(){
         return readMessageExecutor;
+    }
+    public AuthenticationService authenticationService(){
+        return authenticationService;
     }
 }

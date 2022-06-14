@@ -185,6 +185,11 @@ public class MqClientHandler extends AbstractMqHandler {
 
         log.warn("broker处理消息错误,ch:{},requestId={},error={}", ctx.channel(),cmd.getRequestId(),error.getMsg());
 
+        //鉴权失败
+        if("401".equals(error.getCode())){
+            connectionFuture.completeExceptionally(new MqClientException(error.getMsg()));
+        }
+
         accept.accept(cmd.getRequestId(),cmd,new MqClientException("broker handle error:"+error.getMsg()));
 
     }

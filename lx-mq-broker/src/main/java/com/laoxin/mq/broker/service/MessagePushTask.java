@@ -64,21 +64,20 @@ public class MessagePushTask implements Runnable{
                     .filter(x->pushIfNecessary(now,x.getMessageId().getEntryId(),pushedMessages))
                     .collect(Collectors.toList());
 
-            if(messages != null && messages.size()>0){
-
-                consumer.push(messages)
-                        .thenAccept(v->{
-                            interceptContext.pushSuccess(consumer,messages);
-                            pushMessage();
-                        })
-                        .exceptionally(e->{
-                            log.error("message queue [{}] push message error :{}",subscription,e.getMessage());
-                            return null;
-                        });
+            if(messages == null || messages.isEmpty()){
+                return;
             }
 
+            consumer.push(messages)
+                    .thenAccept(v->{
+                        interceptContext.pushSuccess(consumer,messages);
+                        pushMessage();
+                    })
+                    .exceptionally(e->{
+                        log.error("message queue [{}] push message error :{}",subscription,e.getMessage());
+                        return null;
+                    });
         }
-
     }
 
 
