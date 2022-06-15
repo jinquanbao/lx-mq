@@ -14,6 +14,8 @@ import java.io.Serializable;
 @Configuration
 public class BrokerConfigurationData implements Serializable {
 
+    private int serverPort = 17000;
+
     //消息存储类型
     private String messageStoreType = StoreType.memory.name();
 
@@ -26,6 +28,9 @@ public class BrokerConfigurationData implements Serializable {
     //默认默认每次推送消息数量
     private int defaultPushSize = 10;
 
+    //消息读取任务线程数
+    private int readMessageThreads = 50;
 
-    private int serverPort = 17000;
+    //消息推送线程数
+    private int pushMessageThreads = 20;
 }

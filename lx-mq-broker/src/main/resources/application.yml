@@ -31,10 +31,12 @@ mybatis-plus:
   type-aliases-package: com.laoxin.mq.broker.entity
 #############################################################################
 mq:
+  serverPort: ${MQ_SERVER_PORT:17000}
   messageStoreType: rdb
   metaStoreType: rdb
   consumerQueueThresholdSzie: 512
   defaultPushSize: 10
-  serverPort: ${MQ_SERVER_PORT:17000}
+  readMessageThreads: 50
+  pushMessageThreads: 20
 
 #############################################################################

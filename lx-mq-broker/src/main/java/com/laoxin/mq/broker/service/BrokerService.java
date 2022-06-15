@@ -8,6 +8,7 @@ import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.broker.position.PositionOffsetStore;
 import com.laoxin.mq.broker.spring.SpringContext;
 import com.laoxin.mq.client.enums.TopicType;
+import com.laoxin.mq.client.util.ExecutorCreator;
 import com.laoxin.mq.client.util.FutureUtil;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,7 +21,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Slf4j
 public class BrokerService implements Closeable {
@@ -55,8 +55,8 @@ public class BrokerService implements Closeable {
         this.loadBalanceManager = new DefaultLoadBalanceManager();
         this.messagePushWorker = new MessagePushWorker(this.topics);
         this.messageReadWorker = new MessageReadWorker(this.topics);
-        this.pushMessageExecutor = Executors.newSingleThreadExecutor();
-        this.readMessageExecutor = Executors.newSingleThreadExecutor();
+        this.pushMessageExecutor = ExecutorCreator.createDiscardExecutor(conf.getPushMessageThreads(),2*conf.getPushMessageThreads(),50,"push-msg-");
+        this.readMessageExecutor = ExecutorCreator.createDiscardExecutor(conf.getReadMessageThreads(),conf.getReadMessageThreads(),50,"read-msg-");
         this.springContext = springContext;
     }
 
