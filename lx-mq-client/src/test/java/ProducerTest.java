@@ -16,6 +16,7 @@ public class ProducerTest {
                 .authClientId("testclient")
                 .listenerThreads(1)
                 .serviceUrl("127.0.0.1:17000")
+                .maxConnections(1)
                 .build();
 
         final Producer<String> producer = mqclient.newProducer()

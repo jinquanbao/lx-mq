@@ -42,4 +42,9 @@ public class ClientBuilder {
         return this;
     }
 
+    public ClientBuilder maxConnections(int maxConnections){
+        this.conf.setMaxConnections(maxConnections);
+        return this;
+    }
+
 }

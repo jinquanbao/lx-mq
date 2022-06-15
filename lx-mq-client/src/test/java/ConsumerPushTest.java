@@ -25,9 +25,6 @@ public class ConsumerPushTest {
                 .topicType(TopicType.Default)
                 .subscriptionType(SubscriptionType.Direct)
                 .ackTimeOut(10, TimeUnit.SECONDS)
-                .messageFilter(message -> {
-                    return "test".equals(message.getValue());
-                })
                 .messageListener(new PushMessageListener())
                 .subscriptionProperty("tagTest","v1")
                 .subscribe();

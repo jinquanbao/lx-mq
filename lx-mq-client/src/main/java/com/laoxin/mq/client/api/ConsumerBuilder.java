@@ -21,8 +21,10 @@ public interface ConsumerBuilder<T> {
 
     ConsumerBuilder<T> subscriptionName(String subscription);
 
+    //ack 超时时间,如果是push模式，超过此时间未ack，broker会重新推送
     ConsumerBuilder<T> ackTimeOut(long ackTimeout, TimeUnit timeUnit);
 
+    //依赖的订阅名称，如果有设置，该订阅只能拉取依赖订阅ack后的数据
     ConsumerBuilder<T> dependencyOnSubscription(String subscription);
 
     ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
@@ -31,7 +33,7 @@ public interface ConsumerBuilder<T> {
     ConsumerBuilder<T> messageListener(MessageListener<T> listener);
 
     //仅支持客户端过滤
-    ConsumerBuilder<T> filterExpression(String filterExpression);
+    //ConsumerBuilder<T> filterExpression(String filterExpression);
 
     //仅支持客户端过滤
     ConsumerBuilder<T> messageFilter(MessageFilter<T> filter);

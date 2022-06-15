@@ -14,23 +14,19 @@ public class DefaultMessageTagFilter implements MessageTagFilter{
 
     public DefaultMessageTagFilter(Map<String,String> subscriptionProperties){
         this.subscriptionProperties = subscriptionProperties;
-        this.subscriptionAll = subscriptionProperties != null && subscriptionProperties.containsKey("*");
+        //this.subscriptionAll = subscriptionProperties == null || subscriptionProperties.isEmpty();
     }
 
     @Override
     public boolean accept(Map<String, String> messageProperties) {
 
+        if(subscriptionProperties == null || subscriptionProperties.isEmpty()){
+            return true;
+        }
+
         final Set<String> tags = MessageTagFilter.toMessageTags(messageProperties);
 
-        if(subscriptionAll){
-            return true;
-        }
-
-        if((tags == null || tags.isEmpty()) && (subscriptionProperties == null || subscriptionProperties.isEmpty())){
-            return true;
-        }
-
-        if(tags != null && !tags.isEmpty() && subscriptionProperties != null){
+        if(tags != null && !tags.isEmpty()){
             return subscriptionProperties.keySet().containsAll(tags);
         }
 
