@@ -8,6 +8,7 @@ import com.laoxin.mq.client.command.BaseCommand;
 import com.laoxin.mq.client.command.CommandMessage;
 import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.conf.ConsumerConfigurationData;
+import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.exception.MqClientException;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -400,7 +401,7 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
 
     @Override
     public void connectionFailed(MqClientException e) {
-        if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(e)) {
+        if ((System.currentTimeMillis() > subscribeTimeout || ResultErrorEnum.AUTH_FAILED.getCode().equals(e.getCode())) && subscribeFuture.completeExceptionally(e)) {
             setState(State.Failed);
             client.removeConsumer(this);
         }
@@ -426,14 +427,22 @@ public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer
                 }).exceptionally(e->{
 
                     ch.removeConsumer(consumerId);
-                    if(reconnectionIfNeed()){
+                    if(reconnectionIfNeed() && !ResultErrorEnum.CONSUMER_EXCLUDE.getCode().equals(MqClientException.translateException(e).getCode())){
                         log.warn("subscribe={}订阅失败,重建连接..., topic ={},remoteUrl={}", getSubscription(),topic,
                                 client.getClientConfiguration().getServiceUrl());
                         reconnect(e);
                     }else {
-                        log.warn("subscribe={}创建失败,state={}, topic ={},remoteUrl={}", getSubscription(),getState(),topic,
-                                client.getClientConfiguration().getServiceUrl());
-                        ch.close();
+                        if(subscribeFuture.completeExceptionally(e)){
+                            log.error("subscribe={}创建失败,state={}, topic ={},remoteUrl={},errMsg={}", getSubscription(),getState(),topic,
+                                    client.getClientConfiguration().getServiceUrl(),e.getMessage());
+                            setState(State.Failed);
+                            ch.close();
+                            client.removeConsumer(this);
+                        }else {
+                            log.warn("subscribe={}订阅失败,重建连接..., topic ={},remoteUrl={}", getSubscription(),topic,
+                                    client.getClientConfiguration().getServiceUrl());
+                            reconnect(e);
+                        }
                     }
                     return null;
         });

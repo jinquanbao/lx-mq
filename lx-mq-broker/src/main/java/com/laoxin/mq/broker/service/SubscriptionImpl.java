@@ -7,6 +7,7 @@ import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.broker.position.PositionKey;
 import com.laoxin.mq.broker.position.PositionOffsetStore;
 import com.laoxin.mq.client.api.Message;
+import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.enums.SubscriptionType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -68,7 +69,7 @@ public class SubscriptionImpl implements Subscription{
             case Direct:
                 clearIfSubscriptionTypeChanged(consumer.getSubscriptionType());
                 if(!consumers.isEmpty()){
-                    throw new MqServerException("directed consumer is already connected");
+                    throw new MqServerException(ResultErrorEnum.CONSUMER_EXCLUDE);
                 }
                 consumers.add(consumer);
                 break;

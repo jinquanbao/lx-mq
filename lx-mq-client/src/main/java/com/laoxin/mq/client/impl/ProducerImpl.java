@@ -5,6 +5,7 @@ import com.laoxin.mq.client.command.BaseCommand;
 import com.laoxin.mq.client.command.CommandSendReceipt;
 import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.conf.ProducerConfigurationData;
+import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.exception.MqClientException;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -225,7 +226,7 @@ public class ProducerImpl<T> extends DefaultClientConnection implements Producer
 
     @Override
     public void connectionFailed(MqClientException e) {
-        if (System.currentTimeMillis() > createProducerTimeout && producerCreatedFuture.completeExceptionally(e)) {
+        if ((System.currentTimeMillis() > createProducerTimeout  || ResultErrorEnum.AUTH_FAILED.getCode().equals(e.getCode())) && producerCreatedFuture.completeExceptionally(e)) {
             setState(State.Failed);
             client.removeProducer(this);
         }

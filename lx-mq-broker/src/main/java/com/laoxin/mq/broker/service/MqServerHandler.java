@@ -9,6 +9,7 @@ import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.command.*;
 import com.laoxin.mq.client.enums.CommandType;
 import com.laoxin.mq.client.enums.ConnectionState;
+import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.util.FutureUtil;
 import com.laoxin.mq.client.util.JSONUtil;
 import io.netty.channel.ChannelHandlerContext;
@@ -98,7 +99,7 @@ public class MqServerHandler extends AbstractMqHandler {
                     .clientId(clientId)
                     .build());
         }catch (Exception e){
-            send(Commands.newError("401",e.getMessage()),-1);
+            send(Commands.newError(ResultErrorEnum.AUTH_FAILED.getCode(),e.getMessage()),connect.getRequestId());
             close();
             return;
         }
@@ -178,8 +179,9 @@ public class MqServerHandler extends AbstractMqHandler {
                     //订阅失败
                     consumers.remove(consumerKey, consumerFuture);
                     if (consumerFuture.completeExceptionally(e)) {
-                        send(Commands.newError("1",
-                                e.getMessage()),
+                        final MqServerException exception = MqServerException.translateException(e);
+                        send(Commands.newError(exception.getCode(),
+                                exception.getMessage()),
                                 cmd.getRequestId());
                     }
                     return null;

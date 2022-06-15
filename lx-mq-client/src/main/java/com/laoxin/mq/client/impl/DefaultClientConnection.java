@@ -58,7 +58,7 @@ public abstract class DefaultClientConnection extends HandlerState implements Cl
     private Void connectionError(Throwable exception) {
         log.warn("[{}] [{}] 连接到broker异常: {}", topic, getHandlerName(), exception.getMessage());
 
-        connectionFailed(new MqClientException(exception));
+        connectionFailed(MqClientException.translateException(exception));
 
         this.reconnect(exception);
         return null;

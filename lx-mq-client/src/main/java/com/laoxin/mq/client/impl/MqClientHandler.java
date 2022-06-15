@@ -50,23 +50,22 @@ public class MqClientHandler extends AbstractMqHandler {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         log.info("{} Connected to broker", ctx.channel());
+
         // 连接，鉴权
-        ctx.writeAndFlush(BaseCommand.builder()
+        sendAsync(BaseCommand.builder()
                 .commandType(CommandType.CONNECT.name())
                 .build()
-                .authClientId(conf.getAuthClientId())
-                .toCommandWrapper()
-        ).addListener(future -> {
-            if (future.isSuccess()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("发送连接命令成功: {}", future.isSuccess());
-                }
-            } else {
-                log.warn("发送连接命令失败", future.cause());
-                state = ConnectionState.Closing;
-                ctx.close();
-            }
-        });
+                .authClientId(conf.getAuthClientId()))
+                .thenAccept(x->{
+                    if(log.isTraceEnabled()){
+                        log.trace("auth success");
+                    }
+                }).exceptionally(e->{
+                    //鉴权失败
+                    connectionFuture.completeExceptionally(e);
+                    close();
+                    return null;
+                });
     }
 
     @Override
@@ -94,10 +93,11 @@ public class MqClientHandler extends AbstractMqHandler {
 
 
     @Override
-    protected void handleConnected(BaseCommand connected) {
+    protected void handleConnected(BaseCommand cmd) {
         log.info("通道已连接：{}", ctx.channel());
         connectionFuture.complete(null);
         state = ConnectionState.Connected;
+        accept.accept(cmd.getRequestId(),cmd,null);
     }
 
     @Override
@@ -185,12 +185,9 @@ public class MqClientHandler extends AbstractMqHandler {
 
         log.warn("broker处理消息错误,ch:{},requestId={},error={}", ctx.channel(),cmd.getRequestId(),error.getMsg());
 
-        //鉴权失败
-        if("401".equals(error.getCode())){
-            connectionFuture.completeExceptionally(new MqClientException(error.getMsg()));
-        }
 
-        accept.accept(cmd.getRequestId(),cmd,new MqClientException("broker handle error:"+error.getMsg()));
+
+        accept.accept(cmd.getRequestId(),cmd,new MqClientException(error.getCode(),"broker handle error:"+error.getMsg()));
 
     }
 

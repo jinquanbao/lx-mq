@@ -3,6 +3,7 @@ import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.api.MessageListener;
 import com.laoxin.mq.client.api.MqClient;
 import com.laoxin.mq.client.enums.SubscriptionType;
+import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.exception.MqClientException;
 
 import java.util.concurrent.TimeUnit;
@@ -12,7 +13,7 @@ public class ConsumerPushTest {
     public static void main(String[] args) throws MqClientException {
 
         final MqClient mqclient = MqClient.builder()
-                .authClientId("testclient")
+                .authClientId("testclient1")
                 .listenerThreads(1)
                 .serviceUrl("127.0.0.1:17000")
                 .build();
@@ -21,8 +22,12 @@ public class ConsumerPushTest {
                 .consumerName("consumer1")
                 .subscriptionName("consumer_push")
                 .topic("test2")
-                .subscriptionType(SubscriptionType.Shared)
+                .topicType(TopicType.Default)
+                .subscriptionType(SubscriptionType.Direct)
                 .ackTimeOut(10, TimeUnit.SECONDS)
+                .messageFilter(message -> {
+                    return "test".equals(message.getValue());
+                })
                 .messageListener(new PushMessageListener())
                 .subscriptionProperty("tagTest","v1")
                 .subscribe();

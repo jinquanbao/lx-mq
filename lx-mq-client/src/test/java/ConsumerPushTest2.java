@@ -3,6 +3,7 @@ import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.api.MessageListener;
 import com.laoxin.mq.client.api.MqClient;
 import com.laoxin.mq.client.enums.SubscriptionType;
+import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.exception.MqClientException;
 
 import java.util.concurrent.TimeUnit;
@@ -21,7 +22,8 @@ public class ConsumerPushTest2 {
                 .consumerName("consumer2")
                 .subscriptionName("consumer_push")
                 .topic("test2")
-                .subscriptionType(SubscriptionType.Shared)
+                .topicType(TopicType.Default)
+                .subscriptionType(SubscriptionType.Direct)
                 .ackTimeOut(10, TimeUnit.SECONDS)
                 .messageListener(new PushMessageListener())
                 .subscribe();
