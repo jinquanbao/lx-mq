@@ -10,6 +10,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,11 +72,15 @@ public class JSONUtil {
     }
 
     public static <T> T fromJson(String json, ParameterizedTypeReference reference){
+        return fromJson(json,reference.getType());
+    }
+
+    public static <T> T fromJson(String json, Type type){
         if(StringUtils.isEmpty(json)){
             return null;
         }
         try {
-            return objectMapper.readValue(json,objectMapper.constructType(reference.getType()));
+            return objectMapper.readValue(json,objectMapper.constructType(type));
         } catch (JsonParseException e) {
             log.error("json parse error {}",e.getMessage());
             throw new RuntimeException("json解析异常",e);
@@ -88,7 +93,7 @@ public class JSONUtil {
         }
     }
 
-    public static <T> List<T> fromJsonArray(String json, Class<T> classOfT){
+    public static <T> List<T> fromJsonArray(String json, Class<?> classOfT){
         if(StringUtils.isEmpty(json)){
             return null;
         }

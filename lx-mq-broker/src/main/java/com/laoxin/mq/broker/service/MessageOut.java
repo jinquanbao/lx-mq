@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Data
 @Builder
 public class MessageOut {
+    private long firstOutTime;
     private long outTime;
     private AtomicInteger outCounter;
 

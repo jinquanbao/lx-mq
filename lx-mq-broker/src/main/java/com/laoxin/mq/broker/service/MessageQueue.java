@@ -19,10 +19,19 @@ public class MessageQueue {
 
     private long lastRemoveId;
 
+    private final String queueName;
+
+
     public MessageQueue(SubscriptionImpl subscription){
         this.subscription = subscription;
         this.cacheMsg = new TreeMap<>();
         this.lock = new ReentrantReadWriteLock();
+        this.queueName = subscription.topic().metaData().getTopicName()+"@" + subscription.metaData().getSubscriptionName()
+                +"@" +subscription.topic().metaData().getTenantId();
+    }
+
+    public String getQueueName(){
+        return queueName;
     }
 
     public boolean isFull(){

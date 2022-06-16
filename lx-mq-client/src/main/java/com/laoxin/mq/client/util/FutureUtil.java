@@ -74,19 +74,12 @@ public class FutureUtil {
         
         final String s = JSONUtil.toJson(list);
 
-        ParameterizedTypeReference.<List<MessageImpl<User>>>forType(User.class);
-
-        final Class<User> userClass = User.class;
-        final Type genericSuperclass = userClass.getGenericSuperclass();
-
-        //ParameterizedTypeImpl();
-
-
         ParameterizedTypeImpl type = ParameterizedTypeImpl.make(MessageImpl.class, new Class[]{User.class}, null);
 
         type = ParameterizedTypeImpl.make(List.class,new ParameterizedTypeImpl[]{type},null);
 
-        List<Message<User>> message = JSONUtil.fromJson(s, ParameterizedTypeReference.forType(type));
+        List<Message<User>> message = JSONUtil.fromJson(s, type);
+        List<Message<User>> message2 = JSONUtil.fromJsonArray(s, MessageImpl.class);
 
         System.out.println(message);
 

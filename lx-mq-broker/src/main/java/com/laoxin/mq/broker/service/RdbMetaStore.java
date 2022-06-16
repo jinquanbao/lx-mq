@@ -15,16 +15,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 public class RdbMetaStore implements MetaStore{
 
     private final TopicMapper topicMapper;
     private final SubscriptionMapper subscriptionMapper;
+
+    private Map<SubscriptionKey,SubscriptionKey> lockMap = new ConcurrentHashMap<>();
 
     public RdbMetaStore(SpringContext context){
         this.topicMapper = context.topicMapper();
@@ -79,28 +79,39 @@ public class RdbMetaStore implements MetaStore{
     @Override
     public void storeSubscription(TopicMetaData topicMetaData, SubscriptionMetaData subscriptionMetaData, MetaStoreCallback callback) {
 
-        Optional<SubscriptionEntity> optional = select(topicMetaData.getTenantId(), topicMetaData.getTopicName(), subscriptionMetaData.getSubscriptionName());
+        final SubscriptionKey subscriptionKey = SubscriptionKey.builder()
+                .tenantId(topicMetaData.getTenantId())
+                .topicName(topicMetaData.getTopicName())
+                .subscriptionName(subscriptionMetaData.getSubscriptionName())
+                .build();
 
-        final SubscriptionEntity entity = convert(topicMetaData, subscriptionMetaData);
+        final SubscriptionKey lockObject = getLockObject(subscriptionKey);
 
-        if(optional.isPresent()){
+        synchronized (lockObject){
 
-            entity.setId(optional.get().getId());
-            final SubscriptionMetaDataEntity newMetaData = JSONUtil.fromJson(entity.getMetaData(), SubscriptionMetaDataEntity.class);
-            final SubscriptionMetaDataEntity oldMetaData = JSONUtil.fromJson(optional.get().getMetaData(), SubscriptionMetaDataEntity.class);
-            if(oldMetaData != null
-                    && oldMetaData.getConsumers() !=null){
-                newMetaData.getConsumers().addAll(oldMetaData.getConsumers());
+            Optional<SubscriptionEntity> optional = select(topicMetaData.getTenantId(), topicMetaData.getTopicName(), subscriptionMetaData.getSubscriptionName());
+
+            final SubscriptionEntity entity = convert(topicMetaData, subscriptionMetaData);
+
+            if(optional.isPresent()){
+
+                entity.setId(optional.get().getId());
+                final SubscriptionMetaDataEntity newMetaData = JSONUtil.fromJson(entity.getMetaData(), SubscriptionMetaDataEntity.class);
+                final SubscriptionMetaDataEntity oldMetaData = JSONUtil.fromJson(optional.get().getMetaData(), SubscriptionMetaDataEntity.class);
+                if(oldMetaData != null
+                        && oldMetaData.getConsumers() !=null){
+                    newMetaData.getConsumers().addAll(oldMetaData.getConsumers());
+                }
+                entity.setMetaData(JSONUtil.toJson(newMetaData));
+                entity.setVersion(optional.get().getVersion());
+                subscriptionMapper.updateById(entity);
+
+            }else {
+
+                entity.setCreateTime(entity.getUpdateTime());
+                subscriptionMapper.insert(entity);
+
             }
-            entity.setMetaData(JSONUtil.toJson(newMetaData));
-            entity.setVersion(optional.get().getVersion());
-            subscriptionMapper.updateById(entity);
-
-        }else {
-
-            entity.setCreateTime(entity.getUpdateTime());
-            subscriptionMapper.insert(entity);
-
         }
 
         callback.complete(subscriptionMetaData,null);
@@ -151,17 +162,21 @@ public class RdbMetaStore implements MetaStore{
     @Override
     public void removeSubscription(SubscriptionKey subscriptionKey, MetaStoreCallback callback) {
 
-        final Optional<SubscriptionEntity> optional = select(subscriptionKey.getTenantId(), subscriptionKey.getTopicName(), subscriptionKey.getSubscriptionName());
+        final SubscriptionKey lockObject = getLockObject(subscriptionKey);
 
-        optional.ifPresent(entity->{
-            SubscriptionEntity update = new SubscriptionEntity();
-            update.setId(entity.getId());
-            update.setStatus(0);
-            update.setDeleteTime(LocalDateTime.now());
-            update.setDeleted(1);
-            final int i = subscriptionMapper.updateById(update);
-            log.info("delete Subscription[{}] result={}",subscriptionKey,i);
-        });
+        synchronized (lockObject){
+            final Optional<SubscriptionEntity> optional = select(subscriptionKey.getTenantId(), subscriptionKey.getTopicName(), subscriptionKey.getSubscriptionName());
+
+            optional.ifPresent(entity->{
+                SubscriptionEntity update = new SubscriptionEntity();
+                update.setId(entity.getId());
+                update.setStatus(0);
+                update.setDeleteTime(LocalDateTime.now());
+                update.setDeleted(1);
+                final int i = subscriptionMapper.updateById(update);
+                log.info("delete Subscription[{}] result={}",subscriptionKey,i);
+            });
+        }
 
         callback.complete(subscriptionKey,null);
     }
@@ -169,28 +184,31 @@ public class RdbMetaStore implements MetaStore{
     @Override
     public void removeSubscriptionConsumer(SubscriptionKey subscriptionKey, SubscriptionConsumer subscriptionConsumer, MetaStoreCallback callback) {
 
-        final Optional<SubscriptionEntity> optional = select(subscriptionKey.getTenantId(), subscriptionKey.getTopicName(), subscriptionKey.getSubscriptionName());
+        final SubscriptionKey lockObject = getLockObject(subscriptionKey);
 
-        optional.ifPresent(entity->{
+        synchronized (lockObject){
+            final Optional<SubscriptionEntity> optional = select(subscriptionKey.getTenantId(), subscriptionKey.getTopicName(), subscriptionKey.getSubscriptionName());
 
-            final SubscriptionMetaDataEntity oldMetaData = JSONUtil.fromJson(entity.getMetaData(), SubscriptionMetaDataEntity.class);
-            if(oldMetaData != null
-                    && oldMetaData.getConsumers() !=null
-                    && oldMetaData.getConsumers().remove(subscriptionConsumer)
-                    ){
-                SubscriptionEntity update = new SubscriptionEntity();
-                update.setId(entity.getId());
-                update.setStatus(oldMetaData.getConsumers().isEmpty()?0:entity.getStatus());
-                update.setUpdateTime(LocalDateTime.now());
-                update.setMetaData(JSONUtil.toJson(oldMetaData));
-                update.setVersion(entity.getVersion());
+            optional.ifPresent(entity->{
 
-                final int i = subscriptionMapper.updateById(update);
-                log.info("remove Subscription[{}] consumer[{}] result={}",subscriptionKey,subscriptionConsumer,i);
-            }
+                final SubscriptionMetaDataEntity oldMetaData = JSONUtil.fromJson(entity.getMetaData(), SubscriptionMetaDataEntity.class);
+                if(oldMetaData != null
+                        && oldMetaData.getConsumers() !=null
+                        && oldMetaData.getConsumers().remove(subscriptionConsumer)
+                ){
+                    SubscriptionEntity update = new SubscriptionEntity();
+                    update.setId(entity.getId());
+                    update.setStatus(oldMetaData.getConsumers().isEmpty()?0:entity.getStatus());
+                    update.setUpdateTime(LocalDateTime.now());
+                    update.setMetaData(JSONUtil.toJson(oldMetaData));
+                    update.setVersion(entity.getVersion());
 
-        });
+                    final int i = subscriptionMapper.updateById(update);
+                    log.info("remove Subscription[{}] consumer[{}] result={}",subscriptionKey,subscriptionConsumer,i);
+                }
 
+            });
+        }
 
         callback.complete(subscriptionKey,null);
     }
@@ -204,6 +222,10 @@ public class RdbMetaStore implements MetaStore{
         update.setUpdateTime(LocalDateTime.now());
         update.setMetaData(JSONUtil.toJson(new HashMap<>()));
         subscriptionMapper.update(update,wrapper);
+    }
+
+    private SubscriptionKey getLockObject(SubscriptionKey subscriptionKey){
+        return lockMap.computeIfAbsent(subscriptionKey,x->subscriptionKey);
     }
 
 }

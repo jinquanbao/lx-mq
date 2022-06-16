@@ -177,7 +177,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
     }
 
     private List<Message<T>> decodeMessage(CommandMessage cmd){
-        List<Message<T>> message = JSONUtil.fromJson(cmd.getPayloadAndHeaders(), ParameterizedTypeReference.forType(type));
+        List<Message<T>> message = JSONUtil.fromJson(cmd.getPayloadAndHeaders(), type);
         return message;
     }
 

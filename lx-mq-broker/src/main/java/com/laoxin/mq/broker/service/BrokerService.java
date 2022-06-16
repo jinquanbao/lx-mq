@@ -37,6 +37,7 @@ public class BrokerService implements Closeable {
     private final LoadBalanceManager loadBalanceManager;
     private final Worker messagePushWorker;
     private final Worker messageReadWorker;
+    private final Worker messageOutClearWorker;
     private final ExecutorService pushMessageExecutor;
     private final ExecutorService readMessageExecutor;
     private final SpringContext springContext;
@@ -55,6 +56,7 @@ public class BrokerService implements Closeable {
         this.loadBalanceManager = new DefaultLoadBalanceManager();
         this.messagePushWorker = new MessagePushWorker(this.topics);
         this.messageReadWorker = new MessageReadWorker(this.topics);
+        this.messageOutClearWorker = new MessageOutClearWorker(this.topics);
         this.pushMessageExecutor = ExecutorCreator.createDiscardExecutor(conf.getPushMessageThreads(),2*conf.getPushMessageThreads(),50,"push-msg-");
         this.readMessageExecutor = ExecutorCreator.createDiscardExecutor(conf.getReadMessageThreads(),conf.getReadMessageThreads(),50,"read-msg-");
         this.springContext = springContext;
@@ -63,6 +65,7 @@ public class BrokerService implements Closeable {
     public void start(){
         messageReadWorker.start();
         messagePushWorker.start();
+        messageOutClearWorker.start();
         metaStore.start();
         serverStarter.start();
     }
@@ -75,6 +78,7 @@ public class BrokerService implements Closeable {
         serverStarter.close();
         messagePushWorker.close();
         messageReadWorker.close();
+        messageOutClearWorker.close();
         pushMessageExecutor.shutdownNow();
         readMessageExecutor.shutdownNow();
         closeTopic().thenAccept(v->

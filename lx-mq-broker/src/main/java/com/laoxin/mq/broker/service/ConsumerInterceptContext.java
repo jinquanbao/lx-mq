@@ -4,6 +4,7 @@ import com.laoxin.mq.client.api.Message;
 
 import java.util.List;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 
 public interface ConsumerInterceptContext {
 
@@ -19,4 +20,6 @@ public interface ConsumerInterceptContext {
 
     TreeMap<Long,MessageOut> getPushedMessages();
     TreeMap<Long,MessageOut>  getPulledMessages();
+
+    CompletableFuture<Void> clear();
 }
