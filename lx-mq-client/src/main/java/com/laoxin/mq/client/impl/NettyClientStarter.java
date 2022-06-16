@@ -2,10 +2,12 @@ package com.laoxin.mq.client.impl;
 
 import com.laoxin.mq.client.api.MqDecoder;
 import com.laoxin.mq.client.api.MqEncoder;
-import com.laoxin.mq.client.conf.ClientConfigurationData;
 import com.laoxin.mq.client.exception.MqClientException;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -14,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,17 +46,11 @@ public class NettyClientStarter implements Closeable {
         this.bootstrap = new Bootstrap();
         this.maxConnections = client.getClientConfiguration().getMaxConnections();
         this.pool = new ConcurrentHashMap<>();
+        this.address = client.getAddress();
         afterPropertiesSet();
     }
 
     private void afterPropertiesSet(){
-        final ClientConfigurationData conf = client.getClientConfiguration();
-        final String[] split = conf.getServiceUrl().split(":");
-        if(split == null || split.length !=2 ){
-            log.error("ServiceUrl invalid");
-            throw new RuntimeException("ServiceUrl invalid");
-        }
-        this.address = InetSocketAddress.createUnresolved(split[0], Integer.parseInt(split[1]));
         bootstrap.group(workGroup)
                 .channel(NioSocketChannel.class)
                 .handler(new ChannelInitializer<Channel>() {
@@ -67,7 +65,12 @@ public class NettyClientStarter implements Closeable {
                 });
     }
 
+
     public CompletableFuture<MqClientHandler> createConnection(){
+        return createConnection(this.address);
+    }
+
+    public CompletableFuture<MqClientHandler> createConnection(InetSocketAddress address){
         if (maxConnections == 0) {
             // Disable pool
             return createConnection(address, -1);

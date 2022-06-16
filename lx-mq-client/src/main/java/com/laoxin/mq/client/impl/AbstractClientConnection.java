@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public abstract class DefaultClientConnection extends HandlerState implements ClientConnection {
+public abstract class AbstractClientConnection extends HandlerState implements ClientConnection {
 
     protected final MqClientImpl client;
 
@@ -17,7 +17,7 @@ public abstract class DefaultClientConnection extends HandlerState implements Cl
     protected final AtomicReference<MqClientHandler> ch;
 
 
-    public DefaultClientConnection(MqClientImpl client, String topic){
+    public AbstractClientConnection(MqClientImpl client, String topic){
         this.client = client;
         this.topic = topic;
         this.ch = new AtomicReference<>();

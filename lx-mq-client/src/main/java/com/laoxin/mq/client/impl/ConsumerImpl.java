@@ -22,7 +22,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
-public class ConsumerImpl<T> extends DefaultClientConnection implements Consumer<T> {
+public class ConsumerImpl<T> extends AbstractClientConnection implements Consumer<T> {
 
     private final long consumerId;
     private final MqClientImpl client;

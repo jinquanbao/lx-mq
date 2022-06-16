@@ -15,7 +15,7 @@ public class ConsumerPushTest2 {
         final MqClient mqclient = MqClient.builder()
                 .authClientId("testclient")
                 .listenerThreads(1)
-                .serviceUrl("127.0.0.1:17000")
+                .serviceUrl("tcp://127.0.0.1:17000")
                 .build();
 
         final Consumer<String> consumer = mqclient.newConsumer()

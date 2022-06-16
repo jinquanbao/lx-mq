@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public class ProducerImpl<T> extends DefaultClientConnection implements Producer<T> {
+public class ProducerImpl<T> extends AbstractClientConnection implements Producer<T> {
 
     private final MqClientImpl client;
     private final ProducerConfigurationData conf;

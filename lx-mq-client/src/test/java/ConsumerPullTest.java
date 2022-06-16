@@ -2,6 +2,7 @@ import com.laoxin.mq.client.api.Consumer;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.api.MqClient;
 import com.laoxin.mq.client.enums.SubscriptionType;
+import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.exception.MqClientException;
 
 import java.util.List;
@@ -14,13 +15,14 @@ public class ConsumerPullTest {
         final MqClient mqclient = MqClient.builder()
                 .authClientId("testclient")
                 .listenerThreads(1)
-                .serviceUrl("127.0.0.1:17000")
+                .serviceUrl("tcp://127.0.0.1:17000")
                 .build();
 
         final Consumer<String> consumer = mqclient.newConsumer()
                 .consumerName("consumer1")
                 .subscriptionName("consumer_pull")
                 .topic("test")
+                .topicType(TopicType.Default)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 

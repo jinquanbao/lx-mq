@@ -4,6 +4,7 @@ import com.laoxin.mq.client.api.*;
 import com.laoxin.mq.client.conf.ClientConfigurationData;
 import com.laoxin.mq.client.conf.ConsumerConfigurationData;
 import com.laoxin.mq.client.conf.ProducerConfigurationData;
+import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.exception.MqClientException;
 import com.laoxin.mq.client.util.ExecutorProvider;
 import io.netty.util.HashedWheelTimer;
@@ -11,6 +12,7 @@ import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -31,6 +33,7 @@ public class MqClientImpl implements MqClient {
     private final AtomicLong requestIdGenerator = new AtomicLong();
     private final SendOpsAccept sendOpsAccept;
     private final ScheduledExecutorService scheduledExecutorService;
+    private final ServerAddressProvider serverAddressProvider;
 
     public MqClientImpl(ClientConfigurationData conf){
         this.conf = conf;
@@ -38,10 +41,12 @@ public class MqClientImpl implements MqClient {
         this.consumers = Collections.newSetFromMap(new ConcurrentHashMap());
         externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "mq-external-listener");
         internalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "mq-internal-listener");
+        this.serverAddressProvider = new ServerAddressProvider(conf.getServiceUrl());
         this.nettyClientStarter = new NettyClientStarter(this);
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("mq-timer"), 1, TimeUnit.MILLISECONDS);
         this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"mq-scheduled"));
         this.sendOpsAccept=new SendOpsAccept(scheduledExecutorService);
+
     }
 
     @Override
@@ -72,13 +77,14 @@ public class MqClientImpl implements MqClient {
             Thread.currentThread().interrupt();
             throw new MqClientException(e);
         } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof MqClientException) {
-                throw (MqClientException) t;
-            } else {
-                throw new MqClientException(t);
+            final MqClientException exception = MqClientException.translateException(e);
+            if(ResultErrorEnum.CONSUMER_EXCLUDE.getCode().equals(exception.getCode())){
+                log.warn("directed consumer is already connected on other process, subscribe ignored");
+            }else {
+                throw exception;
             }
         }
+        return null;
     }
 
     public <T> CompletableFuture<Consumer> subscribeAsync(ConsumerConfigurationData<T> conf, Class<T> pojo) {
@@ -152,7 +158,7 @@ public class MqClientImpl implements MqClient {
 
     protected CompletableFuture<MqClientHandler> getConnection() {
 
-        return nettyClientStarter.createConnection();
+        return nettyClientStarter.createConnection(serverAddressProvider.getAddress());
     }
 
     public long newProducerId() {
@@ -182,5 +188,9 @@ public class MqClientImpl implements MqClient {
         synchronized (consumer) {
             consumers.remove(consumer);
         }
+    }
+
+    InetSocketAddress getAddress(){
+       return serverAddressProvider.getAddress();
     }
 }
