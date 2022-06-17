@@ -100,7 +100,7 @@ public class MqServerHandler extends AbstractMqHandler {
                     .build());
         }catch (Exception e){
             send(Commands.newError(ResultErrorEnum.AUTH_FAILED.getCode(),e.getMessage()),connect.getRequestId());
-            close();
+            closeIfNoneProducerAndConsumer();
             return;
         }
 
@@ -482,11 +482,17 @@ public class MqServerHandler extends AbstractMqHandler {
     }
 
     public void closeConsumer(Consumer consumer) {
-        close();
+       close();
     }
 
-    public void closeProducer(Producer consumer) {
-        close();
+    public void closeProducer(Producer producer) {
+       close();
+    }
+
+    void closeIfNoneProducerAndConsumer(){
+        if(consumers.isEmpty() && producers.isEmpty()){
+            super.close();
+        }
     }
 
     void removeConsumer(Consumer consumer){

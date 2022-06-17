@@ -102,7 +102,7 @@ public class Consumer {
 
     public void disconnect() {
         log.info("Disconnecting consumer: {}", this);
-        sh.closeConsumer(this);
+        //sh.closeConsumer(this);
         try {
             close();
         } catch (Exception e) {

@@ -55,7 +55,7 @@ public class Producer {
 
     public CompletableFuture<Void> disconnect() {
         log.info("Disconnecting producer: {}", this);
-        sh.closeProducer(this);
+        //sh.closeProducer(this);
         try {
             close();
         } catch (Exception e) {

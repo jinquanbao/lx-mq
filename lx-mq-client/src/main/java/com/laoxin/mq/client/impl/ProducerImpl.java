@@ -258,9 +258,18 @@ public class ProducerImpl<T> extends AbstractClientConnection implements Produce
                                 client.getClientConfiguration().getServiceUrl());
                         reconnect(e);
                     }else {
-                        log.warn("producer={}创建失败,state={}, topic ={},remoteUrl={}", producerName,getState(),topic,
-                                client.getClientConfiguration().getServiceUrl());
-                        ch.close();
+                        if(producerCreatedFuture.completeExceptionally(e)){
+                            log.error("producer={}创建失败,state={}, topic ={},remoteUrl={}", producerName,getState(),topic,
+                                    client.getClientConfiguration().getServiceUrl());
+                            setState(State.Failed);
+                            ch.closeIfNoneProducerAndConsumer();
+                            client.removeProducer(this);
+                        }else {
+                            log.warn("producer={}创建失败,重建连接..., topic ={},remoteUrl={}", producerName,topic,
+                                    client.getClientConfiguration().getServiceUrl());
+                            reconnect(e);
+                        }
+
                     }
                     return null;
         });

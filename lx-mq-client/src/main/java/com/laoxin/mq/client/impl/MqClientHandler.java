@@ -62,8 +62,9 @@ public class MqClientHandler extends AbstractMqHandler {
                     }
                 }).exceptionally(e->{
                     //鉴权失败
-                    connectionFuture.completeExceptionally(e);
-                    close();
+                    if(connectionFuture.completeExceptionally(e)){
+                        closeIfNoneProducerAndConsumer();
+                    }
                     return null;
                 });
     }
@@ -207,6 +208,12 @@ public class MqClientHandler extends AbstractMqHandler {
 
     void removeConsumer(final long consumerId) {
         consumers.remove(consumerId);
+    }
+
+    void closeIfNoneProducerAndConsumer(){
+        if(consumers.isEmpty() && producers.isEmpty()){
+            super.close();
+        }
     }
 
     public CompletableFuture<BaseCommand> sendAsync(BaseCommand cmd) {

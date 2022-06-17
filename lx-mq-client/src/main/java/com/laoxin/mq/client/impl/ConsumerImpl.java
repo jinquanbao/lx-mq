@@ -12,7 +12,6 @@ import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.exception.MqClientException;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.ParameterizedTypeReference;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 import java.lang.reflect.Type;
@@ -436,7 +435,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
                             log.error("subscribe={}创建失败,state={}, topic ={},remoteUrl={},errMsg={}", getSubscription(),getState(),topic,
                                     client.getClientConfiguration().getServiceUrl(),e.getMessage());
                             setState(State.Failed);
-                            ch.close();
+                            ch.closeIfNoneProducerAndConsumer();
                             client.removeConsumer(this);
                         }else {
                             log.warn("subscribe={}订阅失败,重建连接..., topic ={},remoteUrl={}", getSubscription(),topic,
