@@ -1,6 +1,7 @@
 package com.laoxin.mq.broker.service;
 
 import com.laoxin.mq.broker.position.Position;
+import com.laoxin.mq.broker.position.PositionKey;
 import com.laoxin.mq.client.api.Message;
 
 import java.util.List;
@@ -19,6 +20,8 @@ public interface Subscription {
     void triggerPush();
 
     void ack(Position position);
+
+    void ack(PositionKey positionKey,List<Long> entryIds);
 
     CompletableFuture<Void> close();
 

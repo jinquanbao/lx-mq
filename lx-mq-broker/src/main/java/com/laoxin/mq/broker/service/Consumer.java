@@ -70,10 +70,12 @@ public class Consumer {
                 .topic(ack.getTopic())
                 .build();
 
-        subscription.ack(Position.builder()
-                .positionKey(positionKey)
-                .entryId(ack.getEntryId())
-                .build());
+        if(ack.getEntryIds() == null || ack.getEntryIds().isEmpty()){
+            log.warn("ack entryId is empty ack={}",ack);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        subscription.ack(positionKey,ack.getEntryIds());
 
         return CompletableFuture.completedFuture(null);
     }

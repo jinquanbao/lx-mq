@@ -3,6 +3,8 @@ package com.laoxin.mq.client.impl;
 import com.laoxin.mq.client.api.MessageId;
 import lombok.Getter;
 
+import java.util.Objects;
+
 @Getter
 public class MessageIdImpl implements MessageId {
 
@@ -39,4 +41,5 @@ public class MessageIdImpl implements MessageId {
     public String getTopic() {
         return topic;
     }
+
 }

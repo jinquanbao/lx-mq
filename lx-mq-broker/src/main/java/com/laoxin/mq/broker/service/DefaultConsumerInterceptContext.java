@@ -77,6 +77,16 @@ public class DefaultConsumerInterceptContext implements ConsumerInterceptContext
     }
 
     @Override
+    public void ack(List<Long> entryIds) {
+        synchronized (pulledMsg){
+            for(Long entryId: entryIds){
+                pulledMsg.remove(entryId);
+                pushedMsg.remove(entryId);
+            }
+        }
+    }
+
+    @Override
     public TreeMap<Long,MessageOut> getPushedMessages() {
         return pushedMsg;
     }

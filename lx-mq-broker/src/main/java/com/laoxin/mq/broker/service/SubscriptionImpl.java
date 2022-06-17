@@ -12,6 +12,7 @@ import com.laoxin.mq.client.enums.SubscriptionType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -196,6 +197,27 @@ public class SubscriptionImpl implements Subscription{
         interceptContext.ack(position.getEntryId());
         positionOffsetStore.persist(position);
         this.triggerPush();
+    }
+
+    @Override
+    public void ack(PositionKey positionKey, List<Long> entryIds) {
+        messageQueue.remove(entryIds);
+        interceptContext.ack(entryIds);
+        positionOffsetStore.persist(Position.builder()
+                .positionKey(positionKey)
+                .entryId(entryIds.stream().max((o1,o2)->o1.compareTo(o2)).get())
+                .build());
+        this.triggerPush();
+    }
+
+    public static void main(String[] args) {
+        List<Long> ids = new ArrayList<>();
+        ids.add(1L);
+        ids.add(0L);
+        ids.add(5L);
+        ids.add(2L);
+        ids.add(3L);
+        System.out.println(ids.stream().max((o1, o2) -> o1.compareTo(o2)).get());
     }
 
     @Override

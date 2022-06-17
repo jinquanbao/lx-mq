@@ -15,10 +15,12 @@ import lombok.extern.slf4j.Slf4j;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class ConsumerImpl<T> extends AbstractClientConnection implements Consumer<T> {
@@ -290,9 +292,19 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
         ack(msg.getMessageId());
     }
 
-    public void ack(MessageId msg) throws MqClientException {
+    public void ack(MessageId msgId) throws MqClientException {
+        ack(Arrays.asList(msgId));
+    }
+
+    @Override
+    public void ack(List<MessageId> msgIds) throws MqClientException {
         try {
-            ackAsync(msg).get();
+            if(msgIds.stream().map(MessageId::getTenantId).collect(Collectors.toSet()).size()>1
+                    || msgIds.stream().map(MessageId::getTopic).collect(Collectors.toSet()).size() >1
+                ){
+                throw new IllegalArgumentException("批量提交的消息id必须都是在同一个topic，同一个租户内");
+            }
+            ackAsync(msgIds).get();
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof MqClientException) {
@@ -306,7 +318,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
         }
     }
 
-    public CompletableFuture<Void> ackAsync(MessageId msgId){
+    public CompletableFuture<Void> ackAsync(List<MessageId> msgIds){
 
         final CompletableFuture<Void> ackFuture = new CompletableFuture<>();
 
@@ -315,11 +327,13 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
             return ackFuture;
         }
 
-        final MessageIdImpl messageId = (MessageIdImpl)msgId;
+        final MessageIdImpl messageId = (MessageIdImpl)msgIds.get(0);
+
+        List<Long> entryIds = msgIds.stream().map(MessageId::getEntryId).collect(Collectors.toList());
 
         //发送ack命令
         long requestId = client.newRequestId();
-        final BaseCommand ack = Commands.newAck(messageId.getTopic(), getSubscription(), consumerId, messageId.getTenantId(), messageId.getEntryId());
+        final BaseCommand ack = Commands.newAck(messageId.getTopic(), getSubscription(), consumerId, messageId.getTenantId(), entryIds);
 
         ch().sendAsync(ack,requestId).thenRun(()->{
             //ack success

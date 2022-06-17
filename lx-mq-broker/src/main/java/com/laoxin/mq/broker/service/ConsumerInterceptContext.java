@@ -18,6 +18,8 @@ public interface ConsumerInterceptContext {
 
     void ack(long entryId);
 
+    void ack(List<Long> entryId);
+
     TreeMap<Long,MessageOut> getPushedMessages();
     TreeMap<Long,MessageOut>  getPulledMessages();
 

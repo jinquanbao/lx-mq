@@ -80,12 +80,20 @@ public class MessageQueue {
 
     public Message remove(long entryId){
 
+        return remove(Arrays.asList(entryId));
+    }
+
+    public Message remove(List<Long> entryIds){
+
         try {
             lock.writeLock().lockInterruptibly();
             try {
-                Message remove = cacheMsg.remove(entryId);
-                if(remove != null){
-                    lastRemoveId = entryId;
+                Message remove = null;
+                for(Long entryId: entryIds){
+                    remove = cacheMsg.remove(entryId);
+                    if(remove != null){
+                        lastRemoveId = entryId;
+                    }
                 }
                 return remove;
             }finally {

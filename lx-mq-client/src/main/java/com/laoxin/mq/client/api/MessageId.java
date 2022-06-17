@@ -7,6 +7,8 @@ public interface MessageId extends Comparable<MessageId> {
 
     String getTopic();
 
+    long getTenantId();
+
     long getEntryId();
 
     static MessageId from(String topic,long tenantId,long entryId){

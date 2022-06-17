@@ -2,6 +2,8 @@ package com.laoxin.mq.client.command;
 
 import lombok.*;
 
+import java.util.List;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -13,6 +15,6 @@ public class CommandAck {
     private long tenantId;
     private String topic;
     private String subscription;
-    private long entryId;
+    private List<Long> entryIds;
 
 }

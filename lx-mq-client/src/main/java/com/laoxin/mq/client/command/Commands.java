@@ -5,6 +5,7 @@ import com.laoxin.mq.client.enums.SubscriptionType;
 import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.util.JSONUtil;
 
+import java.util.List;
 import java.util.Map;
 
 public interface Commands {
@@ -75,10 +76,10 @@ public interface Commands {
                 ;
     }
 
-    static BaseCommand newAck(String topic, String subscription, long consumerId,long tenantId,long entryId) {
+    static BaseCommand newAck(String topic, String subscription, long consumerId, long tenantId, List<Long> entryIds) {
         final CommandAck build = CommandAck.builder()
                 .consumerId(consumerId)
-                .entryId(entryId)
+                .entryIds(entryIds)
                 .subscription(subscription)
                 .tenantId(tenantId)
                 .topic(topic)
