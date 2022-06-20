@@ -66,7 +66,7 @@ public abstract class AbstractMqHandler extends AbstractConnectionStateHandler i
         commandReceived();
 
         if(log.isDebugEnabled() && !(CommandType.PING.name().equals(cmd.getCommandType()) || CommandType.PONG.name().equals(cmd.getCommandType()) ) ){
-            log.debug("recevie cmd={}",JSONUtil.toJson(cmd));
+            log.debug("recevie cmd={}",wrapper.getCommandType());
         }
 
         switch (CommandType.getEnum(cmd.getCommandType())){

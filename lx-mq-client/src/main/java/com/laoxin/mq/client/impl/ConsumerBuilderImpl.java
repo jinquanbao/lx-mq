@@ -86,7 +86,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> dependencyOnSubscription(String subscription) {
         conf.setDependencyOnSubscription(subscription);
-        return null;
+        return this;
     }
 
     @Override

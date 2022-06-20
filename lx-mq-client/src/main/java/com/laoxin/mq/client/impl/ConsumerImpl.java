@@ -250,7 +250,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
                 }
                 listener.onMessage(this, msg);
                 //if consumer no ack
-                deQueueMsg(msg);
+                //deQueueMsg(msg);
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing message: {}", topic,  getSubscription(), msg,
                         t);
