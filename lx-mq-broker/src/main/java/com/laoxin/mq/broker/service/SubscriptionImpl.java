@@ -210,16 +210,6 @@ public class SubscriptionImpl implements Subscription{
         this.triggerPush();
     }
 
-    public static void main(String[] args) {
-        List<Long> ids = new ArrayList<>();
-        ids.add(1L);
-        ids.add(0L);
-        ids.add(5L);
-        ids.add(2L);
-        ids.add(3L);
-        System.out.println(ids.stream().max((o1, o2) -> o1.compareTo(o2)).get());
-    }
-
     @Override
     public CompletableFuture<Void> close() {
         if (log.isDebugEnabled()) {

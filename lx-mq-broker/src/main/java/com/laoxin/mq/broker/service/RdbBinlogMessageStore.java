@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class RdbBinlogMessageStore implements MessageStore {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final int MAX_READE_SIZE = 100;
 
     RdbBinlogMessageStore(DataSource dataSource){
         this.jdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
@@ -40,7 +41,7 @@ public class RdbBinlogMessageStore implements MessageStore {
 
         Position position = request.getPosition();
         Long maxEntryId = request.getMaxEntryId();
-        int readSize = request.getReadSize();
+        int readSize = request.getReadSize()>MAX_READE_SIZE?MAX_READE_SIZE:request.getReadSize();
         final Map<String, String> subscriptionProperties = request.getSubscriptionProperties();
 
         Set<String> tableNames = null;
