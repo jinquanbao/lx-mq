@@ -106,6 +106,14 @@ public class DefaultConsumerInterceptContext implements ConsumerInterceptContext
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public CompletableFuture<Void> clearForce() {
+        pushedMsg.clear();
+        pulledMsg.clear();
+        log.info("messageQueue[{}] clear out message success",messageQueue.getQueueName());
+        return CompletableFuture.completedFuture(null);
+    }
+
     private int clearExpireMessage(Map<Long,MessageOut> map){
         int i = 0;
         long now = System.currentTimeMillis();

@@ -24,4 +24,6 @@ public interface ConsumerInterceptContext {
     TreeMap<Long,MessageOut>  getPulledMessages();
 
     CompletableFuture<Void> clear();
+
+    CompletableFuture<Void> clearForce();
 }

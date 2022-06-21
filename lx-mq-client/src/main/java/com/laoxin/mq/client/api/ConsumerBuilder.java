@@ -43,6 +43,9 @@ public interface ConsumerBuilder<T> {
     //消息标签过滤tag设置，服务端过滤
     ConsumerBuilder<T> subscriptionProperties(Map<String,String> subscriptionProperties);
 
+    //客户端缓存队列是否严格顺序消费，默认true，仅push模式支持
+    ConsumerBuilder<T> orderConsumer(boolean orderConsumer);
+
 
 
 

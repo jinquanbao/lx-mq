@@ -12,7 +12,6 @@ import com.laoxin.mq.client.enums.SubscriptionType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -91,14 +90,23 @@ public class SubscriptionImpl implements Subscription{
             //TODO consumer close?
             consumers.clear();
         }
+        clearCacheMessage();
+    }
+
+    private void clearCacheMessage(){
+        if(consumers.isEmpty()){
+            messageQueue.clear();
+            interceptContext.clearForce();
+            log.info("messageQueue [{}] clear success ",messageQueue.getQueueName());
+        }
     }
 
     @Override
     public boolean removeConsumer(Consumer consumer) {
         consumers.remove(consumer);
-
+        clearCacheMessage();
         CompletableFuture<Consumer> future = new CompletableFuture<>();
-        //TODO
+
         SubscriptionKey subscriptionKey = SubscriptionKey.builder()
                 .subscriptionName(subscriptionMetaData.getSubscriptionName())
                 .tenantId(topic.metaData().getTenantId())

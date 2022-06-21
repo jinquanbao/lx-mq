@@ -130,5 +130,11 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> orderConsumer(boolean orderConsumer) {
+        conf.setOrderConsumer(orderConsumer);
+        return this;
+    }
+
 
 }
