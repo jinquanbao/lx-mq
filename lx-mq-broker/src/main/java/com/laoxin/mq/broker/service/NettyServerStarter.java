@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class NettyServerStarter implements Closeable {
@@ -23,10 +24,12 @@ public class NettyServerStarter implements Closeable {
     private final int port;
 
     private final Thread thread;
+    private final CompletableFuture<Void> startedFuture;
 
     public NettyServerStarter(BrokerService service){
         this.service = service;
         this.port = service.conf().getServerPort();
+        this.startedFuture = new CompletableFuture();
         final DefaultThreadFactory bossThreadFactory = new DefaultThreadFactory("mq-boss-group");
         final DefaultThreadFactory workerThreadFactory = new DefaultThreadFactory("mq-worker-group");
         this.bossGroup = new NioEventLoopGroup(1,bossThreadFactory);
@@ -35,8 +38,9 @@ public class NettyServerStarter implements Closeable {
         this.thread.setName("netty-server");
     }
 
-    public void start(){
+    public CompletableFuture<Void> start(){
         this.thread.start();
+        return startedFuture;
     }
 
     private void process(){
@@ -59,10 +63,11 @@ public class NettyServerStarter implements Closeable {
             // 绑定端口，开始接收进来的链接
             ChannelFuture channelFuture = serverBootstrap.bind(port).syncUninterruptibly();
             log.info("broker 启动完成，监听【" + port + "】端口");
-
+            startedFuture.complete(null);
             channelFuture.channel().closeFuture().syncUninterruptibly();
         } catch (Exception e) {
             log.error("broker 启动异常", e);
+            this.startedFuture.completeExceptionally(e);
             throw new RuntimeException("broker 启动异常",e);
         } finally {
             workerGroup.shutdownGracefully();

@@ -75,7 +75,8 @@ public class MqServerHandler extends AbstractMqHandler {
 
         if(tenantId >0 ){
 
-            if(tenantId != authContext.getTenantId() || !authContext.scopeAll()){
+            if(tenantId != authContext.getTenantId() && !authContext.scopeAll()){
+                log.error("handle reject for tenantId overreach currentTenantId={},authTenantId={}",authContext.getTenantId());
                 throw new IllegalArgumentException("handle reject for tenantId overreach");
             }
 
@@ -98,6 +99,8 @@ public class MqServerHandler extends AbstractMqHandler {
                     .builder()
                     .clientId(clientId)
                     .build());
+
+            log.info("connect success scope={},tenantId={}",authContext.getClientId(),authContext.getTenantId());
         }catch (Exception e){
             send(Commands.newError(ResultErrorEnum.AUTH_FAILED.getCode(),e.getMessage()),connect.getRequestId());
             closeIfNoneProducerAndConsumer();

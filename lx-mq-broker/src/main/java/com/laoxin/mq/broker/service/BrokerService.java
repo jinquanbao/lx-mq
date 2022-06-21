@@ -62,12 +62,12 @@ public class BrokerService implements Closeable {
         this.springContext = springContext;
     }
 
-    public void start(){
+    public void start() throws Exception {
         messageReadWorker.start();
         messagePushWorker.start();
         messageOutClearWorker.start();
         metaStore.start();
-        serverStarter.start();
+        serverStarter.start().get();
     }
 
 
