@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -288,23 +289,12 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
 
     @Override
     public void ack(Message msg) throws MqClientException {
-        deQueueMsg(msg);
-        ack(msg.getMessageId());
+        ack(Arrays.asList(msg));
     }
 
-    public void ack(MessageId msgId) throws MqClientException {
-        ack(Arrays.asList(msgId));
-    }
-
-    @Override
-    public void ack(List<MessageId> msgIds) throws MqClientException {
+    public void ack(List<Message> msgs) throws MqClientException {
         try {
-            if(msgIds.stream().map(MessageId::getTenantId).collect(Collectors.toSet()).size()>1
-                    || msgIds.stream().map(MessageId::getTopic).collect(Collectors.toSet()).size() >1
-                ){
-                throw new IllegalArgumentException("批量提交的消息id必须都是在同一个topic，同一个租户内");
-            }
-            ackAsync(msgIds).get();
+            ackAsync(msgs).get();
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof MqClientException) {
@@ -318,9 +308,33 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
         }
     }
 
-    public CompletableFuture<Void> ackAsync(List<MessageId> msgIds){
+    @Override
+    public CompletableFuture<Void> ackAsync(Message msg){
+        return ackAsync(Arrays.asList(msg));
+    }
+
+    @Override
+    public CompletableFuture<Void> ackAsync(List<Message> msgs){
+        if(msgs == null || msgs.isEmpty()){
+            return CompletableFuture.completedFuture(null);
+        }
+        List<MessageId> msgIds = new ArrayList<>();
+        for(Message msg: msgs){
+            deQueueMsg(msg);
+            msgIds.add(msg.getMessageId());
+        }
+        return acknowledgeAsync(msgIds);
+    }
+
+    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> msgIds){
 
         final CompletableFuture<Void> ackFuture = new CompletableFuture<>();
+
+        if(msgIds.stream().map(MessageId::getTenantId).collect(Collectors.toSet()).size()>1
+                || msgIds.stream().map(MessageId::getTopic).collect(Collectors.toSet()).size() >1
+        ){
+            ackFuture.completeExceptionally(new IllegalArgumentException("批量提交的消息id必须都是在同一个topic，同一个租户内"));
+        }
 
         if(!isConnected()){
             ackFuture.completeExceptionally(new MqClientException("Consumer not ready. State: "+getState()));

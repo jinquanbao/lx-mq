@@ -17,6 +17,6 @@ public class PositionKey {
     private String subscription;
 
     public String key(){
-        return tenantId+"@"+topic+"@"+subscription+"@";
+        return tenantId+"@"+topic+"@"+subscription;
     }
 }
