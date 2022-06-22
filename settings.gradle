@@ -1,3 +1,5 @@
+rootProject.name = 'lx-mq'
 include(':lx-mq-client')
 include(':lx-mq-broker')
-rootProject.name = 'lx-mq'
+include 'lx-mq-common'
+

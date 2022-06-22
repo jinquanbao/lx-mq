@@ -235,9 +235,6 @@ public class MqClientHandler extends AbstractMqHandler {
         if(requestId>0){
             cmd.requestId(requestId);
         }
-        if(conf.getAuthClientId() != null){
-            cmd.authClientId(conf.getAuthClientId());
-        }
 
         long createAt = System.currentTimeMillis();
 
@@ -252,7 +249,7 @@ public class MqClientHandler extends AbstractMqHandler {
                 .callback(callback)
                 .build());
 
-        ctx.writeAndFlush(cmd.toCommandWrapper()).addListener(writeFuture -> {
+        ctx.writeAndFlush(cmd.toProtoCommand()).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} 消息发送至broker失败: {}", ctx.channel(), writeFuture.cause().getMessage());
                 accept.removeSendOps(requestId);

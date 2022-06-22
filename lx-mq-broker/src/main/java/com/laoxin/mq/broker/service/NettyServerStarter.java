@@ -1,11 +1,14 @@
 package com.laoxin.mq.broker.service;
 
-import com.laoxin.mq.client.api.MqDecoder;
-import com.laoxin.mq.client.api.MqEncoder;
+import com.laoxin.mq.protos.BaseCommandProto;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,8 +57,12 @@ public class NettyServerStarter implements Closeable {
                         @Override
                         protected void initChannel(Channel ch) throws Exception {
                             ch.pipeline()
-                                    .addLast("decoder", new MqDecoder())
-                                    .addLast("encoder", new MqEncoder())
+                                    .addLast("decoderFrame", new ProtobufVarint32FrameDecoder())
+                                    .addLast("decoder", new ProtobufDecoder(BaseCommandProto.BaseCommand.getDefaultInstance()))
+                                    .addLast("encoderLengthField", new ProtobufVarint32LengthFieldPrepender())
+                                    .addLast("encoder", new ProtobufEncoder())
+                                    //.addLast("decoder", new MqDecoder())
+                                    //.addLast("encoder", new MqEncoder())
                                     .addLast(new MqServerHandler(service));
                         }
                     })

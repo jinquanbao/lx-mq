@@ -2,6 +2,7 @@ description = 'lx-mq-broker'
 version '1.0.0'
 
 dependencies {
+    implementation project(":lx-mq-common")
     implementation project(":lx-mq-client")
     compile group: 'com.baomidou', name: 'mybatis-plus-boot-starter', version: '3.4.1'
     compile group: 'com.github.xiaoymin', name: 'knife4j-spring-boot-starter', version: '3.0.2'

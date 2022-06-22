@@ -5,6 +5,7 @@ import com.laoxin.mq.client.command.CommandWrapper;
 import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.enums.CommandType;
 import com.laoxin.mq.client.util.JSONUtil;
+import com.laoxin.mq.protos.BaseCommandProto;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
@@ -39,34 +40,71 @@ public abstract class AbstractMqHandler extends AbstractConnectionStateHandler i
         return ctx;
     }
 
-    @Override
-    protected void channelRead0(ChannelHandlerContext channelHandlerContext, Object msg) throws Exception {
-        if(!(msg instanceof CommandWrapper)){
-            log.warn("msg object is not CommandWrapper:" + msg.getClass().getName());
-            ctx.fireChannelRead(msg);
-            return;
-        }
-
-        CommandWrapper wrapper = (CommandWrapper) msg;
+    private BaseCommand convert(CommandWrapper wrapper){
 
         BaseCommand cmd = BaseCommand.builder().commandType(wrapper.getCommandType()).build();
         if(wrapper.getData() != null && wrapper.getData().length > 0){
             try {
                 cmd = JSONUtil.fromJson(wrapper.getData(), BaseCommand.class);
+                cmd.setCommandType(wrapper.getCommandType());
             } catch (Exception exception) {
                 log.error("cmd json 格式转换异常 {}", new String(wrapper.getData()));
-                return;
+                return null;
             }
             if(cmd == null){
                 log.warn("cmd parse null: {}",new String(wrapper.getData()));
-                return;
+                return null;
             }
+        }
+        return cmd;
+    }
+
+    private BaseCommand convert(BaseCommandProto.BaseCommand msg){
+
+        final CommandType commandType = CommandType.getEnum(msg.getCommandType());
+        if(commandType == null){
+            log.error("unknow commandType :{}",msg.getCommandType());
+            return null;
+        }
+        BaseCommand cmd = BaseCommand.builder().commandType(commandType.name()).build();
+        if(msg.getMessage().size()>0 ){
+            final String stringUtf8 = msg.getMessage().toStringUtf8();
+            try {
+                cmd = JSONUtil.fromJson(msg.getMessage().toStringUtf8(), BaseCommand.class);
+                cmd.setCommandType(commandType.name());
+            } catch (Exception exception) {
+                log.error("cmd json 格式转换异常 {}", stringUtf8);
+                return null;
+            }
+            if(cmd == null){
+                log.warn("cmd parse null: {}",stringUtf8);
+                return null;
+            }
+        }
+        return cmd;
+    }
+
+    @Override
+    protected void channelRead0(ChannelHandlerContext channelHandlerContext, Object msg) throws Exception {
+        BaseCommand cmd =null;
+        if(msg instanceof BaseCommandProto.BaseCommand){
+            cmd = convert((BaseCommandProto.BaseCommand)msg);
+        }else if(msg instanceof CommandWrapper){
+            cmd = convert((CommandWrapper)msg);
+        }else {
+            log.warn("msg object is not support:" + msg.getClass().getName());
+            ctx.fireChannelRead(msg);
+            return;
+        }
+
+        if(cmd == null){
+            return;
         }
 
         commandReceived();
 
-        if(log.isDebugEnabled() && !(CommandType.PING.name().equals(cmd.getCommandType()) || CommandType.PONG.name().equals(cmd.getCommandType()) ) ){
-            log.debug("recevie cmd={}",wrapper.getCommandType());
+        if(log.isTraceEnabled() && !(CommandType.PING.name().equals(cmd.getCommandType()) || CommandType.PONG.name().equals(cmd.getCommandType()) ) ){
+            log.trace("recevie cmd={}",cmd.getCommandType());
         }
 
         switch (CommandType.getEnum(cmd.getCommandType())){
@@ -269,7 +307,7 @@ public abstract class AbstractMqHandler extends AbstractConnectionStateHandler i
         if(authClientId != null){
             cmd.authClientId(authClientId);
         }
-        ctx.writeAndFlush(cmd.toCommandWrapper());
+        ctx.writeAndFlush(cmd.toProtoCommand());
     }
 
 

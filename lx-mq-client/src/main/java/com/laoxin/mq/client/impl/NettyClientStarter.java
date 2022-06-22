@@ -1,8 +1,7 @@
 package com.laoxin.mq.client.impl;
 
-import com.laoxin.mq.client.api.MqDecoder;
-import com.laoxin.mq.client.api.MqEncoder;
 import com.laoxin.mq.client.exception.MqClientException;
+import com.laoxin.mq.protos.BaseCommandProto;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -10,14 +9,16 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,8 +59,13 @@ public class NettyClientStarter implements Closeable {
                     protected void initChannel(Channel ch) throws Exception {
                         ch.pipeline()
                                 //.addLast(new LoggingHandler(LogLevel.INFO))
-                                .addLast("decoder", new MqDecoder())
-                                .addLast("encoder", new MqEncoder())
+                                .addLast("decoderFrame", new ProtobufVarint32FrameDecoder())
+                                .addLast("decoder", new ProtobufDecoder(BaseCommandProto.BaseCommand.getDefaultInstance()))
+                                .addLast("encoderLengthField", new ProtobufVarint32LengthFieldPrepender())
+                                .addLast("encoder", new ProtobufEncoder())
+
+                                //.addLast("decoder", new MqDecoder())
+                                //.addLast("encoder", new MqEncoder())
                                 .addLast("handler", new MqClientHandler(client));
                     }
                 });

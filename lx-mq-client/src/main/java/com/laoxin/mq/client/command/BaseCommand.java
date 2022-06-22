@@ -1,6 +1,9 @@
 package com.laoxin.mq.client.command;
 
+import com.google.protobuf.ByteString;
+import com.laoxin.mq.client.enums.CommandType;
 import com.laoxin.mq.client.util.JSONUtil;
+import com.laoxin.mq.protos.BaseCommandProto;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.AllArgsConstructor;
@@ -28,11 +31,23 @@ public class BaseCommand {
     }
 
     public CommandWrapper toCommandWrapper(){
+        String tmp = this.commandType;
+        this.commandType = null;
         return CommandWrapper.builder()
-                .commandType(commandType)
+                .commandType(tmp)
                 .data(JSONUtil.toJson(this).getBytes())
                 .build()
                 ;
+    }
+
+    public BaseCommandProto.BaseCommand toProtoCommand(){
+        String tmp = this.commandType;
+        this.commandType = null;
+        return BaseCommandProto.BaseCommand
+                .newBuilder()
+                .setCommandType(CommandType.getEnum(tmp).getType())
+                .setMessage(ByteString.copyFromUtf8(JSONUtil.toJson(this)))
+                .build();
     }
 
 
