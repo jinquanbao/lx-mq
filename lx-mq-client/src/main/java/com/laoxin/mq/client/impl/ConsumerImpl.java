@@ -121,6 +121,9 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
     }
 
     private void verifyConsumerState() throws MqClientException {
+        if(ch() == null){
+            throw new MqClientException.NotConnectedException("consumer "+this.getState().name());
+        }
         switch(this.getState()) {
             case Ready:
             case Connecting:
@@ -318,7 +321,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
         if(msgs == null || msgs.isEmpty()){
             return CompletableFuture.completedFuture(null);
         }
-        List<MessageId> msgIds = new ArrayList<>();
+        List<MessageId> msgIds = new ArrayList<>(msgs.size());
         for(Message msg: msgs){
             deQueueMsg(msg);
             msgIds.add(msg.getMessageId());

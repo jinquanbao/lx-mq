@@ -179,8 +179,19 @@ public class SubscriptionImpl implements Subscription{
         if(position.getEntryId()< messageQueue.getLastRemoveId()){
             //位置已经被消费过，说明是要查历史消费信息
             return pullMessage(position,size);
-        }else {
+        }else if(position.getEntryId()>messageQueue.lastId() && messageQueue.isFull()) {
+            //缓存队列已满，消费位移大于缓存最大消费位点，判断缓存队列的数据是否都已被消费
+            //如果都被消费了，清除缓存队列消息
+            Optional<Position> optional = positionOffsetStore().getPosition(position.getPositionKey());
+            optional.ifPresent(x->{
+                if(x.getEntryId() >= messageQueue.lastId()){
+                    log.info("[{}] cache message already consumed, try clear...",messageQueue.getQueueName());
+                    messageQueue.clear();
+                }
+            });
+            return CompletableFuture.completedFuture(null);
 
+        }else{
             return CompletableFuture.completedFuture(messageQueue.getMessagesFrom(position.getEntryId(),null,size));
         }
     }

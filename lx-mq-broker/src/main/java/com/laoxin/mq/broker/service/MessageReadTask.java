@@ -68,7 +68,8 @@ public class MessageReadTask implements Runnable {
         final Optional<Position> optional = subscription.positionOffsetStore().getPosition(positionKey);
         if(optional.isPresent() && optional.get().getEntryId() > lastEntryId){
             position.setEntryId(optional.get().getEntryId());
-            //多个broker 实例部署才会出现这种现象，
+            //多个broker 实例部署
+            //或者手动修改了positionOffset数据才会出现这种现象
             messageQueue.clearLessThanEntryId(optional.get().getEntryId());
         }
 

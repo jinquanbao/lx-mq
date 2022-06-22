@@ -158,7 +158,7 @@ public class MqClientHandler extends AbstractMqHandler {
     @Override
     protected void handleSuccess(BaseCommand success) {
         if (log.isDebugEnabled()) {
-            log.debug("{} Received success response from server: {}", ctx.channel(), success.getRequestId());
+            log.debug("{} Received success response from server: {}", remoteAddress, success.getRequestId());
         }
         accept.accept(success.getRequestId(),success,null);
     }
