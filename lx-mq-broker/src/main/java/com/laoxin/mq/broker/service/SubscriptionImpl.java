@@ -97,7 +97,6 @@ public class SubscriptionImpl implements Subscription{
         if(consumers.isEmpty()){
             messageQueue.clear();
             interceptContext.clearForce();
-            log.info("messageQueue [{}] clear success ",messageQueue.getQueueName());
         }
     }
 
@@ -179,7 +178,7 @@ public class SubscriptionImpl implements Subscription{
         if(position.getEntryId()< messageQueue.getLastRemoveId()){
             //位置已经被消费过，说明是要查历史消费信息
             return pullMessage(position,size);
-        }else if(position.getEntryId()>messageQueue.lastId() && messageQueue.isFull()) {
+        }else if(messageQueue.isFull() && position.getEntryId()>messageQueue.lastId()) {
             //缓存队列已满，消费位移大于缓存最大消费位点，判断缓存队列的数据是否都已被消费
             //如果都被消费了，清除缓存队列消息
             Optional<Position> optional = positionOffsetStore().getPosition(position.getPositionKey());
@@ -199,13 +198,13 @@ public class SubscriptionImpl implements Subscription{
     @Override
     public void triggerPush() {
         if(subscriptionMetaData.isEnablePush()
-            && pushTask.triggerPush()){
+            && pushTask.taskCanDo()){
             pushMessageExecutor.execute(pushTask);
         }
     }
 
     public void triggerReadMessage() {
-        if(readTask.triggerRead()){
+        if(readTask.taskCanDo()){
             readMessageExecutor.execute(readTask);
         }
     }
@@ -227,6 +226,60 @@ public class SubscriptionImpl implements Subscription{
                 .entryId(entryIds.stream().max((o1,o2)->o1.compareTo(o2)).get())
                 .build());
         this.triggerPush();
+    }
+
+    @Override
+    public boolean seek(long entryId) {
+        //重置消费位移前将消息读取和消息推送任务暂停
+        if(!readTask.pause()){
+            throw new MqServerException("readTask pause failed");
+            //return false;
+        }
+        try {
+            if(!pushTask.pause()){
+                throw new MqServerException("pushTask pause failed");
+                //return false;
+            }
+            try {
+                for(int i=0;i<100;i++){
+
+                    //等待任务执行完
+                    if(readTask.isRunning() || pushTask.isRunning() ){
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        continue;
+                    }
+
+                    PositionKey positionKey = PositionKey.builder()
+                            .tenantId(topic.metaData().getTenantId())
+                            .topic(topic.metaData().getTopicName())
+                            .subscription(metaData().getSubscriptionName())
+                            .build();
+
+                    final boolean seek = positionOffsetStore.seek(Position.builder()
+                            .positionKey(positionKey)
+                            .entryId(entryId)
+                            .build());
+                    //缓存重置
+                    if(!seek){
+                        throw new MqServerException("persist seek position failed");
+                    }
+                    messageQueue.clear();
+                    messageQueue.setLastRemoveId(entryId);
+                    interceptContext.clearForce();
+                    return seek;
+                }
+            }finally {
+                pushTask.cancelPause();
+            }
+        }finally {
+            readTask.cancelPause();
+        }
+        throw new MqServerException("readTask or pushTask wait pause time out");
+        //return false;
     }
 
     @Override

@@ -3,7 +3,6 @@ package com.laoxin.mq.client.api;
 import com.laoxin.mq.client.exception.MqClientException;
 
 import java.io.Closeable;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -26,6 +25,9 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> ackAsync(Message msg);
 
     CompletableFuture<Void> ackAsync(List<Message> msgs);
+
+    //重置持久化位移消费偏移量,重置的时候最好不是消费中，否则会导致消费中的消息ack后又覆盖了seek后的偏移量
+    void seek(MessageId msgId)throws MqClientException;
 
     @Override
     void close() throws MqClientException;

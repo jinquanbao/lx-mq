@@ -37,7 +37,7 @@ public class ConsumerPushTest2 {
 
         @Override
         public void onMessage(Consumer consumer, Message<String> msg) {
-            System.out.println("consumer_push 收到消息"+msg.getValue());
+            System.out.println("consumer_push 收到消息id="+msg.getMessageId()+",value="+msg.getValue());
             try {
                 consumer.ack(msg);
             } catch (MqClientException e) {

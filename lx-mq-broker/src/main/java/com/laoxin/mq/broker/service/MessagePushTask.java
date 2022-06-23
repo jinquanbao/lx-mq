@@ -5,15 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class MessagePushTask implements Runnable{
+public class MessagePushTask extends AbstractTask{
 
     //消息正在读取
-    private final AtomicBoolean pushingMessage;
-
     private final SubscriptionImpl subscription;
 
     private final MessageQueue messageQueue;
@@ -21,34 +18,39 @@ public class MessagePushTask implements Runnable{
     private final ConsumerInterceptContext interceptContext;
 
     public MessagePushTask(MessageQueue messageQueue,SubscriptionImpl subscription,ConsumerInterceptContext interceptContext){
+        super();
         this.messageQueue = messageQueue;
         this.subscription = subscription;
-        this.pushingMessage = new AtomicBoolean(false);
         this.interceptContext = interceptContext;
     }
 
     @Override
-    public void run() {
-        if(!triggerPush()){
-            return ;
-        }
-        if (!pushingMessage.compareAndSet(false, true)) {
-            if(log.isDebugEnabled()){
-                log.debug("message queue [{}] is pushingMessage",subscription);
-            }
-            return;
-        }
+    public void doTask() {
+
         try {
             interceptContext.prePush(null);
             pushMessage();
         }catch (Exception e){
             log.error("message queue [{}] push message error :{}",subscription,e.getMessage());
-        }finally {
-            pushingMessage.set(false);
         }
     }
 
+    @Override
+    protected String getTaskName() {
+        return messageQueue.getQueueName()+" push message task";
+    }
+
+    @Override
+    protected void completedException(Exception e) {
+        log.error("message queue [{}] push message error :{}",subscription,e.getMessage());
+    }
+
     private void pushMessage(){
+
+        if(pause.get()){
+            log.info("[{}] has been paused",getTaskName());
+            return;
+        }
 
         //推送负载均衡
         Consumer consumer = subscription.allocateConsumer();
@@ -87,10 +89,15 @@ public class MessagePushTask implements Runnable{
         if(pushedMessages.isEmpty()){
             return true;
         }
-        final Long lastMaxPushEntryId = pushedMessages.lastKey();
-        //The message is the first push
-        if(entryId > lastMaxPushEntryId){
-            return true;
+        try {
+            //这里可能会报NoSuchElementException
+            final Long lastMaxPushEntryId = pushedMessages.lastKey();
+            //The message is the first push
+            if(entryId > lastMaxPushEntryId){
+                return true;
+            }
+        }catch (Exception e){
+
         }
         final MessageOut messageOut = pushedMessages.get(entryId);
         if(messageOut == null){
@@ -107,16 +114,12 @@ public class MessagePushTask implements Runnable{
 
     }
 
-    private void pushSuccess(){
-
-    }
-
-    public boolean triggerPush(){
-
-        if(!subscription.isOnline() || pushingMessage.get() || messageQueue.size() == 0){
+    @Override
+    public boolean taskCanDo() {
+        if(!subscription.isOnline() || messageQueue.size() == 0){
             return false;
         }
-
-        return true;
+        return super.taskCanDo();
     }
+
 }

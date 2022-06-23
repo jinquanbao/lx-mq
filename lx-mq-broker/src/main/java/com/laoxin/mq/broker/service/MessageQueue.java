@@ -175,7 +175,8 @@ public class MessageQueue {
         try {
             lock.writeLock().lockInterruptibly();
             try {
-                  cacheMsg.clear();
+                cacheMsg.clear();
+                log.info("messageQueue [{}] clear success ",getQueueName());
             }finally {
                 lock.writeLock().unlock();
             }
@@ -211,6 +212,7 @@ public class MessageQueue {
         return lastRemoveId;
     }
 
-
-
+    public void setLastRemoveId(long lastRemoveId) {
+        this.lastRemoveId = lastRemoveId;
+    }
 }

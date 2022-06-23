@@ -196,6 +196,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
             if(orderConsumer && peek != null
                     && list.get(0).getMessageId().compareTo(peek.getMessageId())<=0 ){
                 //Duplicate Message
+                log.info("[{}][{}] Duplicate Message {}", topic, getSubscription(), peek.getMessageId());
                 return;
             }
             for(Message message: list){
@@ -250,7 +251,7 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
                     }
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Calling message listener for message {}", topic, getSubscription(), msg);
+                    log.debug("[{}][{}] Calling message listener for message {}", topic, getSubscription(), msg.getMessageId());
                 }
                 listener.onMessage(this, msg);
                 //if consumer no ack
@@ -327,6 +328,37 @@ public class ConsumerImpl<T> extends AbstractClientConnection implements Consume
             msgIds.add(msg.getMessageId());
         }
         return acknowledgeAsync(msgIds);
+    }
+
+    @Override
+    public void seek(MessageId msgId) throws MqClientException {
+        if(!isConnected()){
+            throw new MqClientException("Consumer not ready. State: "+getState());
+        }
+        if(msgId == null){
+            throw new IllegalArgumentException("msgId is null");
+        }
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+
+        //发送seek命令
+        final BaseCommand ack = Commands.newSeek(msgId.getTopic(), getSubscription(), consumerId, msgId.getTenantId(), msgId.getEntryId());
+        ch().sendAsync(ack).thenRun(()->{
+            //ack success
+            future.complete(null);
+        }).exceptionally(e->{
+            //ack failed
+            future.completeExceptionally(e);
+            return null;
+        });
+
+        try {
+            future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MqClientException(e);
+        } catch (ExecutionException e) {
+            throw MqClientException.translateException(e);
+        }
     }
 
     public CompletableFuture<Void> acknowledgeAsync(List<MessageId> msgIds){

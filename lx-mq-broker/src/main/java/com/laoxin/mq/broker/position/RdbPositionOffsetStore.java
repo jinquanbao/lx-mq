@@ -78,6 +78,33 @@ public class RdbPositionOffsetStore implements PositionOffsetStore {
         return true;
     }
 
+    @Override
+    public boolean seek(Position position) {
+        String id = position.getPositionKey().key();
+        final PositionOffsetEntity entity = getById(id);
+        if(entity == null){
+            save(PositionOffsetEntity
+                    .builder()
+                    .id(id)
+                    .lastOffsetId(0)
+                    .currentOffsetId(position.getEntryId())
+                    .build());
+
+        }else {
+            int update = template.update(UPDATE_SQL, entity.getCurrentOffsetId(),
+                    position.getEntryId(),
+                    LocalDateTime.now(),
+                    id,
+                    entity.getCurrentOffsetId(),
+                    entity.getCurrentOffsetId()+1);
+            if(update == 0){
+                log.warn("Position Offset update seek result 0 position={}",position);
+                return false;
+            }
+        }
+        return true;
+    }
+
     public void save(PositionOffsetEntity entity) {
         if(entity == null || entity.getId() == null || entity.getCurrentOffsetId() <1 ){
             log.error("Position Offset Entity invalid");

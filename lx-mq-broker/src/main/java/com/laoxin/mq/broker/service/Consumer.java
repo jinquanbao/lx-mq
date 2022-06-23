@@ -7,6 +7,7 @@ import com.laoxin.mq.broker.position.PositionKey;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.command.CommandAck;
 import com.laoxin.mq.client.command.CommandPull;
+import com.laoxin.mq.client.command.CommandSeek;
 import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +93,11 @@ public class Consumer {
         }
         return future;
 
+    }
+
+    CompletableFuture<Void> seek(CommandSeek seek){
+        subscription.seek(seek.getEntryId());
+        return CompletableFuture.completedFuture(null);
     }
 
     public String getSubscriptionType(){

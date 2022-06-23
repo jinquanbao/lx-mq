@@ -50,6 +50,8 @@ public enum CommandType {
     PING("PING",18),
     PONG("PONG",19),
 
+    SEEK("SEEK",20),
+
     ;
 
     private String name;

@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option java_outer_classname = "BaseCommandProto";
+option java_package = "com.laoxin.mq.protos";
+//option go_package = "./protos;protos";
+
+
+message BaseCommand {
+    
+	//命令类型
+    int32 commandType = 1;
+
+    //消息
+    bytes message = 15;
+
+    
+}

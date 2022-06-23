@@ -8,47 +8,25 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
-public class MessageReadTask implements Runnable {
+public class MessageReadTask extends AbstractTask {
 
     private final MessageQueue messageQueue;
 
     private final SubscriptionImpl subscription;
 
-    //消息正在读取
-    private final AtomicBoolean readingMessage;
 
     private long readMessageLaterTime = 0;
 
 
     public MessageReadTask(MessageQueue messageQueue, SubscriptionImpl subscription){
+        super();
         this.subscription = subscription;
         this.messageQueue = messageQueue;
-        this.readingMessage = new AtomicBoolean(false);
     }
 
-    public void run(){
-        if(!triggerRead()){
-            return ;
-        }
-        if (!readingMessage.compareAndSet(false, true)) {
-            if(log.isDebugEnabled()){
-                log.debug("message queue [{}] is readingMessage",subscription);
-            }
-            return;
-        }
-        try {
-            readMessage();
-        }catch (Exception e){
-            readFailed(e);
-        }finally {
-            readingMessage.set(false);
-        }
-    }
-
-    protected void readMessage(){
+    public void doTask(){
 
         PositionKey positionKey = PositionKey.builder()
                 .tenantId(subscription.topic().metaData().getTenantId())
@@ -79,6 +57,28 @@ public class MessageReadTask implements Runnable {
                 .exceptionally(this::readFailed);
     }
 
+    @Override
+    public boolean taskCanDo() {
+        if(!subscription.isOnline() || messageQueue.isFull()){
+            return false;
+        }
+        //读取消息出错或者上次拉取的消息为空，会延迟适当的时间再执行
+        if(System.currentTimeMillis() < readMessageLaterTime){
+            return false;
+        }
+        return super.taskCanDo();
+    }
+
+    @Override
+    protected String getTaskName() {
+        return messageQueue.getQueueName()+" read message task";
+    }
+
+    @Override
+    protected void completedException(Exception e) {
+        readFailed(e);
+    }
+
     private void readSuccess(List<Message> messages){
         if(messages == null || messages.size() == 0){
             readMessageLaterTime = System.currentTimeMillis() + 1000;
@@ -94,14 +94,4 @@ public class MessageReadTask implements Runnable {
         return null;
     }
 
-    public boolean triggerRead(){
-        if(!subscription.isOnline() || readingMessage.get() || messageQueue.isFull()){
-            return false;
-        }
-        //读取消息出错或者上次拉取的消息为空，会延迟适当的时间再执行
-        if(System.currentTimeMillis() < readMessageLaterTime){
-            return false;
-        }
-        return true;
-    }
 }

@@ -92,6 +92,22 @@ public interface Commands {
                 ;
     }
 
+    static BaseCommand newSeek(String topic, String subscription, long consumerId, long tenantId, long entryId) {
+        final CommandSeek build = CommandSeek.builder()
+                .consumerId(consumerId)
+                .entryId(entryId)
+                .subscription(subscription)
+                .tenantId(tenantId)
+                .topic(topic)
+                .build();
+
+        return BaseCommand.builder()
+                .commandType(CommandType.SEEK.name())
+                .body(JSONUtil.toJson(build))
+                .build()
+                ;
+    }
+
     static BaseCommand newCloseConsumer(String topic, String subscription, long consumerId) {
         final CommandCloseConsumer build = CommandCloseConsumer.builder()
                 .consumerId(consumerId)

@@ -19,9 +19,12 @@ public interface Subscription {
 
     void triggerPush();
 
+    @Deprecated
     void ack(Position position);
 
     void ack(PositionKey positionKey,List<Long> entryIds);
+
+    boolean seek(long entryId);
 
     CompletableFuture<Void> close();
 

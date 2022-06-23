@@ -32,29 +32,29 @@ public class DefaultConsumerInterceptContext implements ConsumerInterceptContext
 
     @Override
     public void pullSuccess(Consumer consumer, List<Message> messages) {
-        synchronized (pulledMsg){
-            messageOut(messages, pulledMsg);
-        }
+        messageOut(messages, pulledMsg);
     }
 
     private void messageOut(List<Message> messages, TreeMap<Long, MessageOut> msgOutMap) {
-        long now = System.currentTimeMillis();
-        messages.forEach(message -> {
-            final MessageOut messageOut = msgOutMap.computeIfAbsent(message.getMessageId().getEntryId(), x -> MessageOut.builder()
-                    .firstOutTime(now)
-                    .outTime(now)
-                    .outCounter(new AtomicInteger())
-                    .build());
-            messageOut.setOutTime(now);
-            messageOut.getOutCounter().incrementAndGet();
-        });
+        synchronized (msgOutMap){
+            long now = System.currentTimeMillis();
+            messages.forEach(message -> {
+                final MessageOut messageOut = msgOutMap.computeIfAbsent(message.getMessageId().getEntryId(), x -> MessageOut.builder()
+                        .firstOutTime(now)
+                        .outTime(now)
+                        .outCounter(new AtomicInteger())
+                        .build());
+                messageOut.setOutTime(now);
+                messageOut.getOutCounter().incrementAndGet();
+            });
+        }
     }
 
     @Override
     public void prePush(Consumer consumer) {
         long minId = messageQueue.firstId();
         if(minId == 0){
-            pushedMsg.clear();
+            clear(pushedMsg);
         }else {
             clearLessThanEntryId(pushedMsg,minId);
         }
@@ -67,13 +67,16 @@ public class DefaultConsumerInterceptContext implements ConsumerInterceptContext
 
     @Override
     public void ack(long entryId) {
-
-        pushedMsg.remove(entryId);
-
-        synchronized (pulledMsg){
-            pulledMsg.remove(entryId);
+        if(!pushedMsg.isEmpty()){
+            synchronized (pushedMsg){
+                pushedMsg.remove(entryId);
+            }
         }
-
+        if(!pulledMsg.isEmpty()){
+            synchronized (pulledMsg){
+                pulledMsg.remove(entryId);
+            }
+        }
     }
 
     @Override
@@ -108,14 +111,27 @@ public class DefaultConsumerInterceptContext implements ConsumerInterceptContext
 
     @Override
     public CompletableFuture<Void> clearForce() {
-        pushedMsg.clear();
-        pulledMsg.clear();
+
+        clear(pushedMsg);
+        clear(pulledMsg);
         log.info("messageQueue[{}] clear out message success",messageQueue.getQueueName());
         return CompletableFuture.completedFuture(null);
     }
 
+    private void clear(Map<Long,MessageOut> map){
+        if(map.isEmpty()){
+            return;
+        }
+        synchronized (map){
+            map.clear();
+        }
+    }
+
     private int clearExpireMessage(Map<Long,MessageOut> map){
         int i = 0;
+        if(map.isEmpty()){
+            return i;
+        }
         long now = System.currentTimeMillis();
         synchronized (map){
             final Iterator<Map.Entry<Long, MessageOut>> iterator = map.entrySet().iterator();
@@ -132,16 +148,19 @@ public class DefaultConsumerInterceptContext implements ConsumerInterceptContext
     }
 
     private void clearLessThanEntryId(Map<Long,MessageOut> map,long entryId){
-
-        final Iterator<Map.Entry<Long, MessageOut>> iterator = map.entrySet().iterator();
-        while (iterator.hasNext()){
-            Long id = iterator.next().getKey();
-            if(id.compareTo(entryId) >= 0){
-                break;
-            }
-            //已经确认消费，移除
-            iterator.remove();
+        if(map.isEmpty()){
+            return;
         }
-
+        synchronized (map){
+            final Iterator<Map.Entry<Long, MessageOut>> iterator = map.entrySet().iterator();
+            while (iterator.hasNext()){
+                Long id = iterator.next().getKey();
+                if(id.compareTo(entryId) >= 0){
+                    break;
+                }
+                //已经确认消费，移除
+                iterator.remove();
+            }
+        }
     }
 }

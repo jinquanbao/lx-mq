@@ -35,4 +35,10 @@ public class MemoryPositionOffsetStore implements PositionOffsetStore {
         cache.put(position.getPositionKey(),position);
         return true;
     }
+
+    @Override
+    public boolean seek(Position position) {
+        cache.put(position.getPositionKey(),position);
+        return true;
+    }
 }

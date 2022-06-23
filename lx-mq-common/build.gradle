@@ -1,0 +1,15 @@
+description = 'lx-mq-common'
+version '1.0.0'
+
+
+dependencies {
+    compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.17.3'
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}

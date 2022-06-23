@@ -188,6 +188,10 @@ public abstract class AbstractMqHandler extends AbstractConnectionStateHandler i
                 handlePong(cmd);
                 break;
 
+            case SEEK:
+                handleSeek(cmd);
+                break;
+
             default:
                 log.error("unknow commandType :{}",cmd.getCommandType());
                 break;
@@ -295,6 +299,9 @@ public abstract class AbstractMqHandler extends AbstractConnectionStateHandler i
     protected void handlePong(BaseCommand pong) {
     }
 
+    protected void handleSeek(BaseCommand cmd) {
+        throw new UnsupportedOperationException();
+    }
 
     public void send(BaseCommand cmd, long requestId) {
         send(cmd,requestId,null);

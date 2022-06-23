@@ -47,4 +47,34 @@ public class RdbPositionOffsetStoreTest {
         Assert.assertEquals(15,optional.get().getEntryId());
 
     }
+
+    @Test
+    public void seekTest(){
+
+        final PositionKey positionKey = PositionKey.builder()
+                .topic("test")
+                .subscription("subscription4")
+                .tenantId(1)
+                .build();
+
+        Position position = Position.builder()
+                .positionKey(positionKey)
+                .entryId(10)
+                .build();
+
+        Assert.assertTrue(brokerService.positionOffsetStore().seek(position));
+
+        position.setEntryId(15);
+
+        Assert.assertTrue(brokerService.positionOffsetStore().seek(position));
+
+        position.setEntryId(1);
+
+        Assert.assertTrue(brokerService.positionOffsetStore().seek(position));
+
+        final Optional<Position> optional = brokerService.positionOffsetStore().getPosition(positionKey);
+
+        Assert.assertEquals(1,optional.get().getEntryId());
+
+    }
 }

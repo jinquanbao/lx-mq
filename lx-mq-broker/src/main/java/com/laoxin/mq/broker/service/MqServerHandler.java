@@ -328,6 +328,35 @@ public class MqServerHandler extends AbstractMqHandler {
     }
 
     @Override
+    protected void handleSeek(BaseCommand cmd) {
+        checkConnected();
+
+        CommandSeek seek = JSONUtil.fromJson(cmd.getBody(), CommandSeek.class);
+
+        checkTenantId(seek.getTenantId());
+
+        final ConsumerKey consumerKey = ConsumerKey.builder().tenantId(seek.getTenantId()).consumerId(seek.getConsumerId()).build();
+        CompletableFuture<Consumer> future = consumers.get(consumerKey);
+
+        if(FutureUtil.futureSuccess(future)){
+            future.getNow(null)
+                    .seek(seek)
+                    .handle((v,e)->{
+                        if(e != null){
+                            log.error("broker handle seek error,consumer={},address={},requestId={},errMsg={}",consumerKey,remoteAddress,cmd.getRequestId(),e.getMessage(),e);
+                            send(Commands.newError("1",e.getMessage()),cmd.getRequestId());
+                        }else {
+                            log.info("broker handle seek success,seek={},address={},requestId={}",seek,remoteAddress,cmd.getRequestId());
+                            send(Commands.newSuccess(),cmd.getRequestId());
+                        }
+                        return null;
+                    });
+        }else {
+            log.warn("consumer future creating on connection,consumer={},address={}",consumerKey,remoteAddress);
+        }
+    }
+
+    @Override
     protected void handlePull(BaseCommand cmd) {
 
         //校验连接状态
