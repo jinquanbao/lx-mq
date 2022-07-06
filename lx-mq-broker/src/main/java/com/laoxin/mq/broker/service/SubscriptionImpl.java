@@ -6,10 +6,13 @@ import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.broker.position.PositionKey;
 import com.laoxin.mq.broker.position.PositionOffsetStore;
+import com.laoxin.mq.broker.stats.ConsumerStatsImpl;
+import com.laoxin.mq.broker.stats.SubscriptionStatsImpl;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.enums.SubscriptionType;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -38,6 +41,7 @@ public class SubscriptionImpl implements Subscription{
     private final ExecutorService readMessageExecutor;
     private final MetaStore metaStore;
     private final ConsumerInterceptContext interceptContext;
+    private final SubscriptionStatsImpl stats;
 
 
     public SubscriptionImpl(TopicImpl topic, BrokerService service, SubscriptionMetaData subscriptionMetaData){
@@ -56,7 +60,14 @@ public class SubscriptionImpl implements Subscription{
         this.pushMessageExecutor = service.pushMessageExecutor();
         this.readMessageExecutor = service.readMessageExecutor();
         this.metaStore = service.metaStore();
+        this.stats = new SubscriptionStatsImpl();
+        afterPropertiesSet();
+    }
 
+    private void afterPropertiesSet(){
+        stats.setConnectedTimestamp(System.currentTimeMillis());
+        stats.setSubscriptionName(metaData().getSubscriptionName());
+        stats.setTenantId(topic.metaData().getTenantId());
     }
 
 
@@ -123,6 +134,11 @@ public class SubscriptionImpl implements Subscription{
         } catch (ExecutionException e) {
             throw new MqServerException(e);
         }
+        //stats
+        final ConsumerStatsImpl consumerStats = consumer.getStats();
+        synchronized (stats){
+            stats.add(consumerStats);
+        }
         return true;
     }
 
@@ -153,12 +169,16 @@ public class SubscriptionImpl implements Subscription{
                     .build());
 
             if(!dependencyPosition.isPresent()){
-                log.debug("当前订阅[{}]依赖的订阅[{}]还未消费，等待依赖订阅消费,",position,metaData().getDependencyOnSubscription());
+                if(log.isDebugEnabled()){
+                    log.debug("当前订阅[{}]依赖的订阅[{}]还未消费，等待依赖订阅消费,",position,metaData().getDependencyOnSubscription());
+                }
                 return CompletableFuture.completedFuture(null);
             }
 
             if(position.compareTo(dependencyPosition.get()) >=0 ){
-                log.debug("当前订阅消费位点[{}]已经赶上依赖订阅消费位点[{}]，等待依赖订阅消费,",position,dependencyPosition.get());
+                if(log.isDebugEnabled()){
+                    log.debug("waiting dependency subscription [{}]",dependencyPosition.get());
+                }
                 return CompletableFuture.completedFuture(null);
             }
 
@@ -316,6 +336,20 @@ public class SubscriptionImpl implements Subscription{
     @Override
     public void refreshMetaData(SubscriptionMetaData subscriptionMetaData) {
         this.subscriptionMetaData = subscriptionMetaData;
+    }
+
+    public SubscriptionStatsImpl getStats(){
+        SubscriptionStatsImpl ret = new SubscriptionStatsImpl();
+        synchronized (stats){
+            BeanUtils.copyProperties(ret,stats);
+            stats.reset();
+        }
+        ret.setSubscriptionState(consumers.isEmpty()?0:1);
+        consumers.forEach(consumer -> {
+            ConsumerStatsImpl consumerStats = consumer.getStats();
+            ret.add(consumerStats);
+        });
+        return stats;
     }
 
     SubscriptionMetaData metaData(){

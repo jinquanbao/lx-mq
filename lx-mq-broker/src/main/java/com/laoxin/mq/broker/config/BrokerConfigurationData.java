@@ -33,4 +33,7 @@ public class BrokerConfigurationData implements Serializable {
 
     //消息推送线程数
     private int pushMessageThreads = 20;
+
+    //是否开启消息监控
+    private boolean enableMonitor = false;
 }

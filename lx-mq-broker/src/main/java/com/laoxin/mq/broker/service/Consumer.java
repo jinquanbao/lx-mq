@@ -4,6 +4,7 @@ import com.laoxin.mq.broker.entity.mq.SubscriptionConsumer;
 import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.broker.position.PositionKey;
+import com.laoxin.mq.broker.stats.ConsumerStatsImpl;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.command.CommandAck;
 import com.laoxin.mq.client.command.CommandPull;
@@ -27,6 +28,10 @@ public class Consumer {
     private String subscriptionType;
     private SubscriptionConsumer subscriptionConsumer;
 
+    private final ConsumerStatsImpl stats;
+
+    private final boolean enableMonitor;
+
     public Consumer(MqServerHandler sh,ConsumerKey consumerKey,TopicImpl topic, SubscriptionImpl subscription){
         this.consumerKey = consumerKey;
         this.subscriptionConsumer = subscription.metaData().getConsumer();
@@ -34,6 +39,14 @@ public class Consumer {
         this.subscription = subscription;
         this.subscriptionType = subscription.metaData().getSubscriptionType();
         this.sh = sh;
+        this.enableMonitor = topic.brokerConf().isEnableMonitor();
+        this.stats = new ConsumerStatsImpl(consumerKey.getTenantId(),subscriptionConsumer.getConsumerName());
+        afterPropertiesSet();
+    }
+
+    private void afterPropertiesSet(){
+        stats.address = subscriptionConsumer.getAddress();
+        stats.connectedTimestamp = System.currentTimeMillis();
     }
 
 
@@ -53,10 +66,23 @@ public class Consumer {
         return subscription.pullCacheMessage(position,pull.getSize());
     }
 
+    public void pullSendSuccess(List<Message> messages){
+        updateStats(messages);
+    }
+
+    private void updateStats(List<Message> messages){
+        if(enableMonitor && messages != null && !messages.isEmpty()){
+            stats.lastMsgOutTimestamp = System.currentTimeMillis();
+            stats.setLastMsgOutPosition(messages.get(messages.size()-1).getMessageId().getEntryId());
+            stats.incrementMsgOutCounter(messages.size());
+        }
+    }
+
     public CompletableFuture<Void> push(List<Message> messages){
 
         if(messages != null && !messages.isEmpty()){
             sh.send(Commands.newMessage(consumerKey.getConsumerId(), JSONUtil.toJson(messages)),0);
+            updateStats(messages);
         }
 
         return CompletableFuture.completedFuture(null);
@@ -78,6 +104,11 @@ public class Consumer {
 
         subscription.ack(positionKey,ack.getEntryIds());
 
+        if(enableMonitor){
+            stats.lastAckedTimestamp = System.currentTimeMillis();
+            stats.setLastAckedPosition(ack.getEntryIds().get(ack.getEntryIds().size()-1));
+        }
+
         return CompletableFuture.completedFuture(null);
     }
 
@@ -98,6 +129,11 @@ public class Consumer {
     CompletableFuture<Void> seek(CommandSeek seek){
         subscription.seek(seek.getEntryId());
         return CompletableFuture.completedFuture(null);
+    }
+
+    public ConsumerStatsImpl getStats(){
+        stats.calculateRate();
+        return stats;
     }
 
     public String getSubscriptionType(){

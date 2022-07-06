@@ -1,5 +1,6 @@
 package com.laoxin.mq.broker.service;
 
+import com.laoxin.mq.broker.stats.ProducerStatsImpl;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
@@ -17,12 +18,18 @@ public class Producer {
 
     private final CompletableFuture<Void> closeFuture;
 
+    private final ProducerStatsImpl stats;
+
+    private final boolean enableMonitor;
+
     public Producer(MqServerHandler sh,Topic topic,ProducerKey producerKey,String producerName){
         this.sh = sh;
         this.topic = topic;
         this.producerKey = producerKey;
         this.producerName = producerName;
         this.closeFuture = new CompletableFuture<>();
+        this.enableMonitor = ((TopicImpl)topic).brokerConf().isEnableMonitor();
+        this.stats = new ProducerStatsImpl(producerName,producerKey.getTenantId(),System.currentTimeMillis());
     }
 
     CompletableFuture<Long> publishMessage(String message){
@@ -34,12 +41,25 @@ public class Producer {
                 future.completeExceptionally(e);
             }else {
                 future.complete(v);
+                updateStats();
             }
         });
 
         return future;
     }
 
+    private void updateStats(){
+        if(!enableMonitor){
+            return;
+        }
+        stats.incrementMsgInCounter(1);
+        stats.setLastMsgInTimestamp(System.currentTimeMillis());
+    }
+
+    public ProducerStatsImpl getStats(){
+        stats.calculateRate();
+        return stats;
+    }
 
     public ProducerKey getProducerKey() {
         return producerKey;

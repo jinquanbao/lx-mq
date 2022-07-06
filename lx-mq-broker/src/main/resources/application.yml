@@ -38,5 +38,6 @@ mq:
   defaultPushSize: 10
   readMessageThreads: 50
   pushMessageThreads: 20
+  enableMonitor: true
 
 #############################################################################

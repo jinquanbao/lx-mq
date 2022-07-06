@@ -380,6 +380,7 @@ public class MqServerHandler extends AbstractMqHandler {
                     .pull(pull));
         }else {
             log.warn("consumer future creating on connection,consumer={},address={}",consumerKey,remoteAddress);
+            return;
         }
 
         futures.forEach(x->x.whenComplete((messages, e) -> {
@@ -390,11 +391,12 @@ public class MqServerHandler extends AbstractMqHandler {
             }
         }));
 
-        if(!result.isEmpty() || errors.isEmpty()){
+        if(errors.isEmpty()){
             if(log.isDebugEnabled()){
                 log.debug("handle consumer pull success,topic={},subscription,tenantId={},address={}",pull.getTopic(),pull.getSubscription(),tenantId,remoteAddress);
             }
             send(Commands.newPullReceipt(pull.getConsumerId(),JSONUtil.toJson(result)),cmd.getRequestId());
+            future.getNow(null).pullSendSuccess(result);
         }else if(!errors.isEmpty()){
             final String errMsg = errors.stream().map(x -> x.getMessage()).collect(Collectors.joining());
             log.error("handle consumer pull error,topic={},subscription,tenantId={},address={},errMsg={}",pull.getTopic(),pull.getSubscription(),tenantId,remoteAddress,errMsg);

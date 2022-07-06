@@ -1,7 +1,9 @@
 package com.laoxin.mq.broker.service;
 
+import com.laoxin.mq.broker.config.BrokerConfigurationData;
 import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.broker.position.Position;
+import com.laoxin.mq.broker.stats.TopicStatsImpl;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.impl.MessageIdImpl;
 import com.laoxin.mq.client.util.FutureUtil;
@@ -25,13 +27,16 @@ public class TopicImpl implements Topic{
 
     private final ReentrantReadWriteLock lock;
 
+    private final BrokerConfigurationData brokerConf;
+
 
     public TopicImpl(TopicMetaData topicMetaData,BrokerService service){
         this.service = service;
         this.topicMetaData = topicMetaData;
         this.subscriptions = new ConcurrentHashMap<>();
         this.producers = new HashSet<>();
-        lock = new ReentrantReadWriteLock();
+        this.lock = new ReentrantReadWriteLock();
+        this.brokerConf = service.conf();
     }
 
     @Override
@@ -170,6 +175,20 @@ public class TopicImpl implements Topic{
         return producers;
     }
 
+
+    public TopicStatsImpl getStats(){
+        TopicStatsImpl stats = new TopicStatsImpl();
+        stats.setTopicName(topicMetaData.getTopicName());
+        stats.setTenantId(topicMetaData.getTenantId());
+        subscriptions.forEach((k,v)->{
+            stats.add(v.getStats());
+        });
+        producers.forEach(producer -> {
+            stats.add(producer.getStats());
+        });
+        return stats;
+    }
+
     @Override
     public CompletableFuture<Void> close() {
         log.info("topic[{}] closing...",topicMetaData);
@@ -192,5 +211,8 @@ public class TopicImpl implements Topic{
 
     TopicMetaData metaData(){
         return topicMetaData;
+    }
+    BrokerConfigurationData brokerConf(){
+        return brokerConf;
     }
 }
