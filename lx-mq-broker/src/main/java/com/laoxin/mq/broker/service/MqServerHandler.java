@@ -400,6 +400,7 @@ public class MqServerHandler extends AbstractMqHandler {
         }else if(!errors.isEmpty()){
             final String errMsg = errors.stream().map(x -> x.getMessage()).collect(Collectors.joining());
             log.error("handle consumer pull error,topic={},subscription,tenantId={},address={},errMsg={}",pull.getTopic(),pull.getSubscription(),tenantId,remoteAddress,errMsg);
+            future.getNow(null).pullSendFailed(errors.get(0));
             send(Commands.newError("1",errMsg),cmd.getRequestId());
         }
 

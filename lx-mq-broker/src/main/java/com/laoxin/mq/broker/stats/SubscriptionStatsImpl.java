@@ -31,13 +31,13 @@ public class SubscriptionStatsImpl implements SubscriptionStats{
     //订阅状态
     private int subscriptionState;
 
-    private List<ConsumerStatsImpl> consumers;
+    private List<ConsumerStatsRecorder> consumers;
 
     public SubscriptionStatsImpl(){
         consumers = new ArrayList<>();
     }
 
-    public void add(ConsumerStatsImpl consumerStats){
+    public void add(ConsumerStatsRecorder consumerStats){
         consumers.add(consumerStats);
         msgRateOut +=consumerStats.getMsgRateOut();
         lastAckedTimestamp = (Math.max(lastAckedTimestamp,consumerStats.getLastAckedTimestamp()));
@@ -46,7 +46,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats{
         lastMsgOutTimestamp = (Math.max(lastMsgOutTimestamp,consumerStats.getLastMsgOutTimestamp()));
         msgOutCounter +=consumerStats.getMsgOutCounter();
         totalMsgOutCounter +=consumerStats.getTotalMsgOutCounter().longValue();
-        connectedTimestamp = (Math.max(connectedTimestamp, consumerStats.connectedTimestamp));
+        connectedTimestamp = (Math.max(connectedTimestamp, consumerStats.getConnectedTimestamp()));
     }
 
     public void reset(){

@@ -56,29 +56,34 @@ public class MessagePushTask extends AbstractTask{
         Consumer consumer = subscription.allocateConsumer();
 
         if(consumer != null){
+            try {
+                long now = System.currentTimeMillis();
+                final TreeMap<Long, MessageOut> pushedMessages = interceptContext.getPushedMessages();
 
-            long now = System.currentTimeMillis();
-            final TreeMap<Long, MessageOut> pushedMessages = interceptContext.getPushedMessages();
+                List<Message> messages = messageQueue
+                        .getMessages(subscription.brokerConf().getDefaultPushSize())
+                        .stream()
+                        .filter(x->pushIfNecessary(now,x.getMessageId().getEntryId(),pushedMessages))
+                        .collect(Collectors.toList());
 
-            List<Message> messages = messageQueue
-                    .getMessages(subscription.brokerConf().getDefaultPushSize())
-                    .stream()
-                    .filter(x->pushIfNecessary(now,x.getMessageId().getEntryId(),pushedMessages))
-                    .collect(Collectors.toList());
+                if(messages == null || messages.isEmpty()){
+                    return;
+                }
 
-            if(messages == null || messages.isEmpty()){
-                return;
+                consumer.push(messages)
+                        .thenAccept(v->{
+                            interceptContext.pushSuccess(consumer,messages);
+                            pushMessage();
+                        })
+                        .exceptionally(e->{
+                            log.error("message queue [{}] push message error :{}",subscription,e.getMessage());
+                            consumer.pushSendFailed(e);
+                            return null;
+                        });
+            }catch (Exception e){
+                consumer.pushSendFailed(e);
             }
 
-            consumer.push(messages)
-                    .thenAccept(v->{
-                        interceptContext.pushSuccess(consumer,messages);
-                        pushMessage();
-                    })
-                    .exceptionally(e->{
-                        log.error("message queue [{}] push message error :{}",subscription,e.getMessage());
-                        return null;
-                    });
         }
     }
 

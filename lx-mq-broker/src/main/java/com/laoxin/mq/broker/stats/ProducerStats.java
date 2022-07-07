@@ -15,4 +15,8 @@ public interface ProducerStats {
     LongAdder getTotalMsgInCounter();
     //最近一次生产消息时间
     long getLastMsgInTimestamp();
+    //异常信息
+    Throwable getException();
+    //发生异常的时间
+    long getExceptionTimestamp();
 }

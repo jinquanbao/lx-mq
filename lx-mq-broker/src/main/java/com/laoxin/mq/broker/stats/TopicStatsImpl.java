@@ -27,7 +27,7 @@ public class TopicStatsImpl implements TopicStats{
     private long totalMsgOutCounter;
 
     //生产者消息统计
-    private final List<ProducerStatsImpl> producers;
+    private final List<ProducerStatsRecorder> producers;
 
     //主题下的订阅统计
     private final List<SubscriptionStatsImpl> subscriptions;
@@ -37,7 +37,7 @@ public class TopicStatsImpl implements TopicStats{
         this.subscriptions = new ArrayList();
     }
 
-    public void add(ProducerStatsImpl stats){
+    public void add(ProducerStatsRecorder stats){
         this.msgRateIn += stats.getMsgRateIn();
         this.msgInCounter += stats.getMsgInCounter();
         this.totalMsgInCounter += stats.getTotalMsgInCounter().longValue();

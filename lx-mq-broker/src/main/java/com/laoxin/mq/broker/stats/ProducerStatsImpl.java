@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.concurrent.atomic.LongAdder;
 
 @Data
-public class ProducerStatsImpl implements ProducerStats{
+public class ProducerStatsImpl implements ProducerStatsRecorder{
 
     private String producerName;
 
@@ -18,16 +18,17 @@ public class ProducerStatsImpl implements ProducerStats{
     private double msgRateIn;
     //上一次统计到现在发送到主题的消息总数
     private long msgInCounter;
+    private final LongAdder intervalMsgInCounter;
     //发送到主题的消息总数
-    //private long totalMsgInCounter;
-
+    private final LongAdder totalMsgInCounter;
     //最近一次生产消息时间
     private long lastMsgInTimestamp;
+    //消费异常信息
+    private volatile Throwable exception;
+    //发生异常的时间
+    private long exceptionTimestamp;
 
-    private final LongAdder intervalMsgInCounter;
-    private final LongAdder totalMsgInCounter;
-
-    private final long oldTime;
+    private long oldTime;
 
     public ProducerStatsImpl() {
         this.oldTime = System.nanoTime();
@@ -47,10 +48,16 @@ public class ProducerStatsImpl implements ProducerStats{
         this.totalMsgInCounter.add(num);
     }
 
+    @Override
+    public void intervalCalculate() {
+        calculateRate();
+    }
+
     public void calculateRate() {
         this.msgInCounter = this.intervalMsgInCounter.sumThenReset();
         final long now = System.nanoTime();
         double interval = (now - oldTime) / 1e9;
         this.msgRateIn= this.msgInCounter/interval;
+        this.oldTime = now;
     }
 }

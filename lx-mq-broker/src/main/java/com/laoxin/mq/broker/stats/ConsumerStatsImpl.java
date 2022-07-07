@@ -5,34 +5,38 @@ import lombok.Data;
 import java.util.concurrent.atomic.LongAdder;
 
 @Data
-public class ConsumerStatsImpl implements ConsumerStats{
+public class ConsumerStatsImpl implements ConsumerStatsRecorder{
 
     //消费者名称
-    public String consumerName;
+    private String consumerName;
     //租户id
-    public long tenantId;
+    private long tenantId;
     //消费者地址
-    public String address;
+    private String address;
     //消费者连接时间
-    public long connectedTimestamp;
+    private long connectedTimestamp;
 
     //消费者消费速率 msg/s
-    public double msgRateOut;
+    private double msgRateOut;
 
-    public long msgOutCounter;
+    private long msgOutCounter;
     //发送给消费者的消息总数
-    public final LongAdder intervalMsgOutCounter;
-    public final LongAdder totalMsgOutCounter;
+    private final LongAdder intervalMsgOutCounter;
+    private final LongAdder totalMsgOutCounter;
     //最近一次ack时间
-    public long lastAckedTimestamp;
+    private long lastAckedTimestamp;
     //最近一次消费时间
-    public long lastMsgOutTimestamp;
+    private long lastMsgOutTimestamp;
     //最近一次ack的位移
     private long lastAckedPosition;
     //最近一次发送给消费者消息位移
     private long lastMsgOutPosition;
+    //消费异常信息
+    private volatile Throwable exception;
+    //发生异常的时间
+    private long exceptionTimestamp;
 
-    private final long oldTime;
+    private long oldTime;
 
     public ConsumerStatsImpl() {
         this.intervalMsgOutCounter = new LongAdder();
@@ -52,10 +56,11 @@ public class ConsumerStatsImpl implements ConsumerStats{
     }
 
     @Override
-    public void calculateRate() {
+    public void intervalCalculate() {
         this.msgOutCounter = this.intervalMsgOutCounter.sumThenReset();
         final long now = System.nanoTime();
         double interval = (now - oldTime) / 1e9;
         this.msgRateOut= this.msgOutCounter/interval;
+        this.oldTime = now;
     }
 }

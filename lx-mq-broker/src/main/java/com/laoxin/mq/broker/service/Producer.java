@@ -1,6 +1,7 @@
 package com.laoxin.mq.broker.service;
 
 import com.laoxin.mq.broker.stats.ProducerStatsImpl;
+import com.laoxin.mq.broker.stats.ProducerStatsRecorder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
@@ -18,7 +19,7 @@ public class Producer {
 
     private final CompletableFuture<Void> closeFuture;
 
-    private final ProducerStatsImpl stats;
+    private final ProducerStatsRecorder stats;
 
     private final boolean enableMonitor;
 
@@ -29,7 +30,7 @@ public class Producer {
         this.producerName = producerName;
         this.closeFuture = new CompletableFuture<>();
         this.enableMonitor = ((TopicImpl)topic).brokerConf().isEnableMonitor();
-        this.stats = new ProducerStatsImpl(producerName,producerKey.getTenantId(),System.currentTimeMillis());
+        this.stats = enableMonitor?new ProducerStatsImpl(producerName,producerKey.getTenantId(),System.currentTimeMillis()):ProducerStatsRecorder.disabledInstance();
     }
 
     CompletableFuture<Long> publishMessage(String message){
@@ -41,23 +42,26 @@ public class Producer {
                 future.completeExceptionally(e);
             }else {
                 future.complete(v);
-                updateStats();
             }
+            updateStats(e);
         });
 
         return future;
     }
 
-    private void updateStats(){
-        if(!enableMonitor){
-            return;
+    private void updateStats(Exception e){
+        if(e != null){
+            stats.setException(e);
+            stats.setExceptionTimestamp(System.currentTimeMillis());
+        }else {
+            stats.setException(null);
+            stats.incrementMsgInCounter(1);
+            stats.setLastMsgInTimestamp(System.currentTimeMillis());
         }
-        stats.incrementMsgInCounter(1);
-        stats.setLastMsgInTimestamp(System.currentTimeMillis());
     }
 
-    public ProducerStatsImpl getStats(){
-        stats.calculateRate();
+    public ProducerStatsRecorder getStats(){
+        stats.intervalCalculate();
         return stats;
     }
 

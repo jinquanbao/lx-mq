@@ -7,6 +7,7 @@ import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.broker.position.PositionKey;
 import com.laoxin.mq.broker.position.PositionOffsetStore;
 import com.laoxin.mq.broker.stats.ConsumerStatsImpl;
+import com.laoxin.mq.broker.stats.ConsumerStatsRecorder;
 import com.laoxin.mq.broker.stats.SubscriptionStatsImpl;
 import com.laoxin.mq.client.api.Message;
 import com.laoxin.mq.client.enums.ResultErrorEnum;
@@ -135,7 +136,7 @@ public class SubscriptionImpl implements Subscription{
             throw new MqServerException(e);
         }
         //stats
-        final ConsumerStatsImpl consumerStats = consumer.getStats();
+        final ConsumerStatsRecorder consumerStats = consumer.getStats();
         synchronized (stats){
             stats.add(consumerStats);
         }
@@ -346,7 +347,7 @@ public class SubscriptionImpl implements Subscription{
         }
         ret.setSubscriptionState(consumers.isEmpty()?0:1);
         consumers.forEach(consumer -> {
-            ConsumerStatsImpl consumerStats = consumer.getStats();
+            ConsumerStatsRecorder consumerStats = consumer.getStats();
             ret.add(consumerStats);
         });
         return stats;
