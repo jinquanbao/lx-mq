@@ -30,10 +30,10 @@ public class TraceLogEntity {
     private long messageId;
 
     @ApiModelProperty(value = "生产者轨迹日志")
-    private String producer_log;
+    private String producerLog;
 
     @ApiModelProperty(value = "订阅者轨迹日志")
-    private String subscription_log;
+    private String subscriptionLog;
 
 
 

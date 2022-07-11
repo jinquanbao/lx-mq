@@ -41,4 +41,5 @@ public class ConsumerLogEntity {
     public int hashCode() {
         return Objects.hash(consumerName, address);
     }
+
 }

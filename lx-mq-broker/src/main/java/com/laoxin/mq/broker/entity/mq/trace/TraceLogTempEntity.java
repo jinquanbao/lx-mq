@@ -9,7 +9,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -32,15 +34,28 @@ public class TraceLogTempEntity {
     private long messageId;
 
     @ApiModelProperty(value = "生产者轨迹日志")
-    private ProducerLogEntity producer_log;
+    private ProducerLogEntity producerLog;
 
     @ApiModelProperty(value = "订阅者轨迹日志")
-    private Set<SubscriptionLogEntity> subscription_log;
+    private List<SubscriptionLogEntity> subscriptionLog;
 
-    public TraceLogTempEntity merge(TraceLogTempEntity entity){
+    public TraceLogTempEntity merge(TraceLogTempEntity old,TraceLogTempEntity update){
+        TraceLogTempEntity ret = old;
+        if(update.producerLog != null){
+            ret.producerLog = update.producerLog;
+        }
+        ret.subscriptionLog = ret.subscriptionLog == null? new ArrayList<>():ret.subscriptionLog;
 
+        if(update.subscriptionLog != null && !update.subscriptionLog.isEmpty()){
+            ret.subscriptionLog.addAll(update.subscriptionLog);
+            ret.subscriptionLog.stream()
+                    .collect(Collectors.toMap(x->x.getSubscriptionName(),x->x,(k1,k2)->k1.merge(k1,k2)))
+                    .values()
+                    .stream()
+                    .collect(Collectors.toList());
+        }
 
-        return this;
+        return ret;
     }
 
 }

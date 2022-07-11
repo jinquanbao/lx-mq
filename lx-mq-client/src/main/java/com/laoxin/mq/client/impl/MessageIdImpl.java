@@ -1,10 +1,10 @@
 package com.laoxin.mq.client.impl;
 
 import com.laoxin.mq.client.api.MessageId;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
-import java.util.Objects;
-
+@EqualsAndHashCode
 @Getter
 public class MessageIdImpl implements MessageId {
 

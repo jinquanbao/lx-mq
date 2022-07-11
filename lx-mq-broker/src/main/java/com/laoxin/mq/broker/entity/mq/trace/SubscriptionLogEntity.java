@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -34,5 +35,14 @@ public class SubscriptionLogEntity {
     @Override
     public int hashCode() {
         return Objects.hash(subscriptionName);
+    }
+
+    public SubscriptionLogEntity merge(SubscriptionLogEntity old,SubscriptionLogEntity update){
+        SubscriptionLogEntity ret = old;
+        ret.consumers = ret.consumers == null?new HashSet<>():ret.consumers;
+        if(update.consumers != null && !update.consumers.isEmpty()){
+            ret.consumers.addAll(update.consumers);
+        }
+        return ret;
     }
 }
