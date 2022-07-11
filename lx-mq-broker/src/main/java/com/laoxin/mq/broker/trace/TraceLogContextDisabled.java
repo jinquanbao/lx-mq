@@ -17,4 +17,8 @@ public class TraceLogContextDisabled implements TraceLogContext{
 
     }
 
+    @Override
+    public boolean logEnabled() {
+        return false;
+    }
 }

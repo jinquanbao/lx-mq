@@ -8,7 +8,7 @@ public interface TraceLogContext {
 
     void close();
 
-    default boolean logDisabled(){
+    default boolean logEnabled(){
         return true;
     };
 }
