@@ -41,26 +41,31 @@ public class TraceLogContextImpl implements TraceLogContext{
     }
 
     private void flush(){
+        List<TraceLogInfo> list = new ArrayList<>(batchFlushSize);
         while (!Thread.currentThread().isInterrupted()){
-            List<TraceLogInfo> list = new ArrayList<>(batchFlushSize);
-            TraceLogInfo info = traceLogQueue.poll();
-            if(info == null){
-                if(list.isEmpty()){
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
+            try {
+
+                TraceLogInfo info = traceLogQueue.poll();
+                if(info == null){
+                    if(list.isEmpty()){
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }else {
+                        traceLogFlush.flush(list);
+                        list.clear();
                     }
                 }else {
-                    traceLogFlush.flush(list);
-                    list.clear();
+                    list.add(info);
+                    if(list.size()>=batchFlushSize){
+                        traceLogFlush.flush(list);
+                        list.clear();
+                    }
                 }
-            }else {
-                list.add(info);
-                if(list.size()>=batchFlushSize){
-                    traceLogFlush.flush(list);
-                    list.clear();
-                }
+            }catch (Exception e){
+                log.error("trace log flush error {}",e.getMessage());
             }
         }
         log.warn("flush work interrupted");
