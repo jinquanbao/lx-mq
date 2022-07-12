@@ -27,7 +27,7 @@ public class TraceLogEntity {
     private String topicName;
 
     @ApiModelProperty(value = "消息id")
-    private long messageId;
+    private String messageId;
 
     @ApiModelProperty(value = "生产者轨迹日志")
     private String producerLog;
@@ -35,6 +35,10 @@ public class TraceLogEntity {
     @ApiModelProperty(value = "订阅者轨迹日志")
     private String subscriptionLog;
 
+    @ApiModelProperty(value = "创建时间")
+    private java.time.LocalDateTime createTime;
 
+    @ApiModelProperty(value = "更新时间")
+    private java.time.LocalDateTime updateTime;
 
 }

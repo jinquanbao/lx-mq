@@ -5,9 +5,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -22,7 +23,7 @@ public class SubscriptionLogEntity {
     private String subscriptionType;
 
     //消费者信息
-    private Set<ConsumerLogEntity> consumers;
+    private List<ConsumerLogEntity> consumers;
 
     @Override
     public boolean equals(Object o) {
@@ -39,9 +40,14 @@ public class SubscriptionLogEntity {
 
     public SubscriptionLogEntity merge(SubscriptionLogEntity old,SubscriptionLogEntity update){
         SubscriptionLogEntity ret = old;
-        ret.consumers = ret.consumers == null?new HashSet<>():ret.consumers;
+        ret.consumers = ret.consumers == null?new ArrayList<>() :ret.consumers;
         if(update.consumers != null && !update.consumers.isEmpty()){
             ret.consumers.addAll(update.consumers);
+            ret.consumers = ret.consumers.stream()
+                    .collect(Collectors.toMap(x->x, x->x,(k1, k2)->k1.merge(k2)))
+                    .values()
+                    .stream()
+                    .collect(Collectors.toList());
         }
         return ret;
     }

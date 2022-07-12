@@ -36,4 +36,6 @@ public class BrokerConfigurationData implements Serializable {
 
     //是否开启消息监控
     private boolean enableMonitor = false;
+    //是否开启消息追踪
+    private boolean enableTrace = false;
 }

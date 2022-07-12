@@ -73,5 +73,21 @@ CREATE TABLE `oauth_client_details`  (
   UNIQUE INDEX `udx_client_id`(`client_id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '应用client' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for trace_log
+-- ----------------------------
+DROP TABLE IF EXISTS `trace_log`;
+CREATE TABLE `trace_log`  (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键id',
+  `tenant_id` bigint(20) NOT NULL DEFAULT 0 COMMENT '租户id',
+  `topic_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '主题名称',
+  `message_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '消息唯一id',
+  `producer_log` json NULL COMMENT '生产者轨迹日志',
+  `subscription_log` json NULL COMMENT '订阅者轨迹日志',
+  `create_time` datetime(3) NOT NULL ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `update_time` datetime(3) NOT NULL DEFAULT '0001-01-01 00:00:00.000' COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `udx_message_id`(`message_id`) USING HASH COMMENT '唯一索引'
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '消息追踪' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;

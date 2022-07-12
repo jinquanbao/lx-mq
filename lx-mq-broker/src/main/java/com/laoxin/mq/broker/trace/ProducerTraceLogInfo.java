@@ -15,6 +15,8 @@ public class ProducerTraceLogInfo {
 
     private String producerAddress;
 
-    private long msgCreateTime;
+    private Long msgCreateTime;
+
+    private Long msgStoredTime;
 
 }

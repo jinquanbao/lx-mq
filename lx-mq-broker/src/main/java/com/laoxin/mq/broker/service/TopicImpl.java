@@ -215,4 +215,7 @@ public class TopicImpl implements Topic{
     BrokerConfigurationData brokerConf(){
         return brokerConf;
     }
+    BrokerService brokerService(){
+        return service;
+    }
 }

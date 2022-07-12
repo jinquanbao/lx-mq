@@ -7,6 +7,8 @@ import com.laoxin.mq.broker.config.BrokerConfigurationData;
 import com.laoxin.mq.broker.exception.MqServerException;
 import com.laoxin.mq.broker.position.PositionOffsetStore;
 import com.laoxin.mq.broker.spring.SpringContext;
+import com.laoxin.mq.broker.trace.DefaultTraceLogManager;
+import com.laoxin.mq.broker.trace.TraceLogManager;
 import com.laoxin.mq.client.enums.TopicType;
 import com.laoxin.mq.client.util.ExecutorCreator;
 import com.laoxin.mq.client.util.FutureUtil;
@@ -42,6 +44,7 @@ public class BrokerService implements Closeable {
     private final ExecutorService readMessageExecutor;
     private final SpringContext springContext;
     private final AuthenticationService authenticationService;
+    private final TraceLogManager traceLogManager;
 
 
 
@@ -60,6 +63,7 @@ public class BrokerService implements Closeable {
         this.pushMessageExecutor = ExecutorCreator.createDiscardExecutor(conf.getPushMessageThreads(),2*conf.getPushMessageThreads(),50,"push-msg-");
         this.readMessageExecutor = ExecutorCreator.createDiscardExecutor(conf.getReadMessageThreads(),conf.getReadMessageThreads(),50,"read-msg-");
         this.springContext = springContext;
+        this.traceLogManager = new DefaultTraceLogManager(springContext.traceLogMapper(),conf.isEnableTrace());
     }
 
     public void start() throws Exception {
@@ -67,6 +71,7 @@ public class BrokerService implements Closeable {
         messagePushWorker.start();
         messageOutClearWorker.start();
         metaStore.start();
+        traceLogManager.traceLogContext().start();
         serverStarter.start().get();
     }
 
@@ -81,6 +86,7 @@ public class BrokerService implements Closeable {
         messageOutClearWorker.close();
         pushMessageExecutor.shutdownNow();
         readMessageExecutor.shutdownNow();
+        traceLogManager.traceLogContext().close();
         closeTopic().thenAccept(v->
             log.info("all topic closed success")
         ).exceptionally(e->{
@@ -178,5 +184,13 @@ public class BrokerService implements Closeable {
     }
     public AuthenticationService authenticationService(){
         return authenticationService;
+    }
+
+    public SpringContext springContext(){
+        return springContext;
+    }
+
+    public TraceLogManager traceLogManager(){
+        return traceLogManager;
     }
 }

@@ -42,4 +42,15 @@ public class ConsumerLogEntity {
         return Objects.hash(consumerName, address);
     }
 
+    public ConsumerLogEntity merge(ConsumerLogEntity entity){
+        if(entity.getAckTimestamp() != null && entity.getAckTimestamp()>0){
+            this.ackTimestamp = entity.getAckTimestamp();
+            this.status = entity.getStatus();
+        }
+        if(entity.getMsgOutTimestamp() != null && entity.getMsgOutTimestamp()>0){
+            this.msgOutTimestamp =  entity.getMsgOutTimestamp();
+        }
+        return this;
+    }
+
 }

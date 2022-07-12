@@ -6,7 +6,12 @@ import com.laoxin.mq.broker.position.Position;
 import com.laoxin.mq.broker.position.PositionKey;
 import com.laoxin.mq.broker.stats.ConsumerStatsImpl;
 import com.laoxin.mq.broker.stats.ConsumerStatsRecorder;
+import com.laoxin.mq.broker.trace.ConsumerTraceLogInfo;
+import com.laoxin.mq.broker.trace.TraceLogContext;
+import com.laoxin.mq.broker.trace.TraceLogConvert;
+import com.laoxin.mq.broker.trace.TraceStepEnum;
 import com.laoxin.mq.client.api.Message;
+import com.laoxin.mq.client.api.MessageId;
 import com.laoxin.mq.client.command.CommandAck;
 import com.laoxin.mq.client.command.CommandPull;
 import com.laoxin.mq.client.command.CommandSeek;
@@ -14,8 +19,11 @@ import com.laoxin.mq.client.command.Commands;
 import com.laoxin.mq.client.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class Consumer {
@@ -28,20 +36,22 @@ public class Consumer {
     //private final String consumerName;
     private String subscriptionType;
     private SubscriptionConsumer subscriptionConsumer;
-
+    private final String topicName;
     private final ConsumerStatsRecorder stats;
 
     private final boolean enableMonitor;
+    private final TraceLogContext traceLogContext;
 
     public Consumer(MqServerHandler sh,ConsumerKey consumerKey,TopicImpl topic, SubscriptionImpl subscription){
         this.consumerKey = consumerKey;
         this.subscriptionConsumer = subscription.metaData().getConsumer();
-        //this.consumerName = subscriptionConsumer.getConsumerName();
+        this.topicName = topic.metaData().getTopicName();
         this.subscription = subscription;
         this.subscriptionType = subscription.metaData().getSubscriptionType();
         this.sh = sh;
         this.enableMonitor = topic.brokerConf().isEnableMonitor();
         this.stats = enableMonitor?new ConsumerStatsImpl(consumerKey.getTenantId(),subscriptionConsumer.getConsumerName()):ConsumerStatsRecorder.disabledInstance();
+        this.traceLogContext = topic.brokerService().traceLogManager().traceLogContext();
         afterPropertiesSet();
     }
 
@@ -69,6 +79,7 @@ public class Consumer {
 
     public void pullSendSuccess(List<Message> messages){
         updateStats(messages,null);
+        logMessageOut(messages);
     }
 
     public void pullSendFailed(Throwable e){
@@ -88,11 +99,35 @@ public class Consumer {
         }
     }
 
+    private void logMessageOut(List<Message> messages){
+        if(messages == null || messages.isEmpty()){
+            return;
+        }
+        traceLogContext.log(TraceLogConvert.
+                convert(messages,null,
+                        consumerTraceLog(TraceStepEnum.msg_outed),
+                        TraceStepEnum.msg_outed));
+    }
+
+    private ConsumerTraceLogInfo consumerTraceLog(TraceStepEnum stepEnum){
+        final long now = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return ConsumerTraceLogInfo.builder()
+                .subscriptionName(subscriptionConsumer.getConsumerName())
+                .subscriptionType(subscriptionType)
+                .status(stepEnum == TraceStepEnum.msg_acked?1:0)
+                .consumerName(subscriptionConsumer.getConsumerName())
+                .address(subscriptionConsumer.getAddress())
+                .msgOutTimestamp(stepEnum == TraceStepEnum.msg_outed?now:null)
+                .ackTimestamp(stepEnum == TraceStepEnum.msg_acked?now:null)
+                .build();
+    }
+
     public CompletableFuture<Void> push(List<Message> messages){
 
         if(messages != null && !messages.isEmpty()){
             sh.send(Commands.newMessage(consumerKey.getConsumerId(), JSONUtil.toJson(messages)),0);
             updateStats(messages,null);
+            logMessageOut(messages);
         }
 
         return CompletableFuture.completedFuture(null);
@@ -118,8 +153,12 @@ public class Consumer {
 
         subscription.ack(positionKey,ack.getEntryIds());
 
+        //stats
         stats.setLastAckedTimestamp(System.currentTimeMillis());
         stats.setLastAckedPosition(ack.getEntryIds().get(ack.getEntryIds().size()-1));
+        //trace log
+        List<MessageId> collect = ack.getEntryIds().stream().map(x -> MessageId.from(ack.getTopic(), ack.getTenantId(), x)).collect(Collectors.toList());
+        traceLogContext.log(TraceLogConvert.convert(collect,consumerTraceLog(TraceStepEnum.msg_acked),TraceStepEnum.msg_acked));
 
         return CompletableFuture.completedFuture(null);
     }

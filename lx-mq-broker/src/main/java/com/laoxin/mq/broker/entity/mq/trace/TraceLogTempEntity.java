@@ -31,7 +31,7 @@ public class TraceLogTempEntity {
     private String topicName;
 
     @ApiModelProperty(value = "消息id")
-    private long messageId;
+    private String messageId;
 
     @ApiModelProperty(value = "生产者轨迹日志")
     private ProducerLogEntity producerLog;
@@ -41,14 +41,16 @@ public class TraceLogTempEntity {
 
     public TraceLogTempEntity merge(TraceLogTempEntity old,TraceLogTempEntity update){
         TraceLogTempEntity ret = old;
-        if(update.producerLog != null){
+        if(ret.producerLog == null && update.producerLog != null){
             ret.producerLog = update.producerLog;
+        }else {
+            ret.producerLog = ret.producerLog.merge(update.producerLog);
         }
         ret.subscriptionLog = ret.subscriptionLog == null? new ArrayList<>():ret.subscriptionLog;
 
         if(update.subscriptionLog != null && !update.subscriptionLog.isEmpty()){
             ret.subscriptionLog.addAll(update.subscriptionLog);
-            ret.subscriptionLog.stream()
+            ret.subscriptionLog = ret.subscriptionLog.stream()
                     .collect(Collectors.toMap(x->x.getSubscriptionName(),x->x,(k1,k2)->k1.merge(k1,k2)))
                     .values()
                     .stream()

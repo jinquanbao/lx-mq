@@ -33,11 +33,22 @@ public class TraceLogContextImpl implements TraceLogContext{
 
     @Override
     public boolean log(TraceLogInfo info) {
+        if(info == null){
+            return false;
+        }
         boolean result = traceLogQueue.offer(info);
         if (!result) {
             log.info("traceLogQueue is full,discardCount={}",discardCount.incrementAndGet());
         }
         return result;
+    }
+
+    @Override
+    public void log(List<TraceLogInfo> info) {
+        if(info == null || info.isEmpty()){
+            return;
+        }
+        info.forEach(x->log(x));
     }
 
     private void flush(){

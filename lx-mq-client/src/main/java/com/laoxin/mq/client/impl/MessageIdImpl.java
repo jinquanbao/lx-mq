@@ -42,4 +42,9 @@ public class MessageIdImpl implements MessageId {
         return topic;
     }
 
+    @Override
+    public String uniqueId() {
+        return tenantId+"@"+topic+"@"+entryId;
+    }
+
 }

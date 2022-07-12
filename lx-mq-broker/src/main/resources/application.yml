@@ -39,5 +39,6 @@ mq:
   readMessageThreads: 50
   pushMessageThreads: 20
   enableMonitor: true
+  enableTrace: true
 
 #############################################################################

@@ -8,6 +8,6 @@ import com.laoxin.mq.broker.spring.DefaultSpringContext;
 public class BrokerStarterTest {
 
     public static void main(String[] args) throws Exception {
-        new BrokerService(new DruidDataSource(),new DefaultSpringContext(null,null),new BrokerConfigurationData()).start();
+        new BrokerService(new DruidDataSource(),new DefaultSpringContext(null,null,null),new BrokerConfigurationData()).start();
     }
 }

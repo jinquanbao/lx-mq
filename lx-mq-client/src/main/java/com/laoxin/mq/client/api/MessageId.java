@@ -11,8 +11,11 @@ public interface MessageId extends Comparable<MessageId> {
 
     long getEntryId();
 
+    String uniqueId();
+
     static MessageId from(String topic,long tenantId,long entryId){
         return new MessageIdImpl(tenantId,topic,entryId);
     }
+
 
 }

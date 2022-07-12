@@ -1,5 +1,7 @@
 package com.laoxin.mq.broker.trace;
 
+import java.util.List;
+
 public class TraceLogContextDisabled implements TraceLogContext{
 
     @Override
@@ -10,6 +12,11 @@ public class TraceLogContextDisabled implements TraceLogContext{
     @Override
     public boolean log(TraceLogInfo info) {
         return false;
+    }
+
+    @Override
+    public void log(List<TraceLogInfo> info) {
+
     }
 
     @Override

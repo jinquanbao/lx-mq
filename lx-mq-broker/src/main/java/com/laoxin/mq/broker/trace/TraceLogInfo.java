@@ -18,4 +18,6 @@ public class TraceLogInfo {
 
     private ConsumerTraceLogInfo consumerTraceLogInfo;
 
+    private TraceStepEnum step;
+
 }
