@@ -90,7 +90,7 @@ public class TraceLogFlush2Rdb implements TraceLogFlush{
             }else {
                 final TraceLogEntity insert = convert(entity);
                 insert.setCreateTime(LocalDateTime.now());
-                insert.setUpdateTime(insert.getUpdateTime());
+                insert.setUpdateTime(insert.getCreateTime());
                 mapper.insert(insert);
             }
         });

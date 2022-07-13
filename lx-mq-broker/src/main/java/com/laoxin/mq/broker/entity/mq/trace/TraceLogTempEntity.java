@@ -41,7 +41,7 @@ public class TraceLogTempEntity {
 
     public TraceLogTempEntity merge(TraceLogTempEntity old,TraceLogTempEntity update){
         TraceLogTempEntity ret = old;
-        if(ret.producerLog == null && update.producerLog != null){
+        if(ret.producerLog == null ){
             ret.producerLog = update.producerLog;
         }else {
             ret.producerLog = ret.producerLog.merge(update.producerLog);
