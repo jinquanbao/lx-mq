@@ -112,7 +112,7 @@ public class Consumer {
     private ConsumerTraceLogInfo consumerTraceLog(TraceStepEnum stepEnum){
         final long now = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         return ConsumerTraceLogInfo.builder()
-                .subscriptionName(subscriptionConsumer.getConsumerName())
+                .subscriptionName(subscription.metaData().getSubscriptionName())
                 .subscriptionType(subscriptionType)
                 .status(stepEnum == TraceStepEnum.msg_acked?1:0)
                 .consumerName(subscriptionConsumer.getConsumerName())
