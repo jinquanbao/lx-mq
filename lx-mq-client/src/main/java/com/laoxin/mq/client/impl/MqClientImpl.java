@@ -6,7 +6,7 @@ import com.laoxin.mq.client.conf.ConsumerConfigurationData;
 import com.laoxin.mq.client.conf.ProducerConfigurationData;
 import com.laoxin.mq.client.enums.ResultErrorEnum;
 import com.laoxin.mq.client.exception.MqClientException;
-import com.laoxin.mq.client.util.ExecutorProvider;
+import com.laoxin.mq.client.util.ExecutorCreator;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -24,8 +24,8 @@ public class MqClientImpl implements MqClient {
     private ClientConfigurationData conf;
     private final Set<Producer<?>> producers;
     private final Set<Consumer<?>> consumers;
-    private final ExecutorProvider externalExecutorProvider;
-    private final ExecutorProvider internalExecutorProvider;
+    //private final ExecutorProvider externalExecutorProvider;
+    //private final ExecutorProvider internalExecutorProvider;
     private final NettyClientStarter nettyClientStarter;
     private final Timer timer;
     private final AtomicLong producerIdGenerator = new AtomicLong();
@@ -34,18 +34,20 @@ public class MqClientImpl implements MqClient {
     private final SendOpsAccept sendOpsAccept;
     private final ScheduledExecutorService scheduledExecutorService;
     private final ServerAddressProvider serverAddressProvider;
+    private final ExecutorService listenerExecutor;
 
     public MqClientImpl(ClientConfigurationData conf){
         this.conf = conf;
         this.producers = Collections.newSetFromMap(new ConcurrentHashMap());
         this.consumers = Collections.newSetFromMap(new ConcurrentHashMap());
-        externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "mq-external-listener");
-        internalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "mq-internal-listener");
+        //externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "mq-external-listener");
+        //internalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "mq-internal-listener");
         this.serverAddressProvider = new ServerAddressProvider(conf.getServiceUrl());
         this.nettyClientStarter = new NettyClientStarter(this);
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("mq-timer"), 1, TimeUnit.MILLISECONDS);
         this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"mq-scheduled"));
         this.sendOpsAccept=new SendOpsAccept(scheduledExecutorService);
+        this.listenerExecutor = ExecutorCreator.createDiscardExecutor(conf.getListenerThreads(),2*conf.getListenerThreads(),5,"mq-listener");
 
     }
 
@@ -90,7 +92,7 @@ public class MqClientImpl implements MqClient {
     public <T> CompletableFuture<Consumer> subscribeAsync(ConsumerConfigurationData<T> conf, Class<T> pojo) {
 
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
-        Consumer consumer =  new ConsumerImpl(this,conf,pojo,externalExecutorProvider.getExecutor(),consumerSubscribedFuture,true);
+        Consumer consumer =  new ConsumerImpl(this,conf,pojo,listenerExecutor,consumerSubscribedFuture,true);
         consumers.add(consumer);
 
         return consumerSubscribedFuture;
@@ -141,9 +143,10 @@ public class MqClientImpl implements MqClient {
                 }
             });
         }
-        externalExecutorProvider.shutdownNow();
-        internalExecutorProvider.shutdownNow();
+        //externalExecutorProvider.shutdownNow();
+        //internalExecutorProvider.shutdownNow();
         scheduledExecutorService.shutdownNow();
+        listenerExecutor.shutdownNow();
         log.info("mq client closed");
     }
 
