@@ -342,7 +342,7 @@ public class SubscriptionImpl implements Subscription{
     public SubscriptionStatsImpl getStats(){
         SubscriptionStatsImpl ret = new SubscriptionStatsImpl();
         synchronized (stats){
-            BeanUtils.copyProperties(ret,stats);
+            BeanUtils.copyProperties(stats,ret);
             stats.reset();
         }
         ret.setSubscriptionState(consumers.isEmpty()?0:1);
@@ -350,7 +350,7 @@ public class SubscriptionImpl implements Subscription{
             ConsumerStatsRecorder consumerStats = consumer.getStats();
             ret.add(consumerStats);
         });
-        return stats;
+        return ret;
     }
 
     SubscriptionMetaData metaData(){
